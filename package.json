@@ -10,10 +10,23 @@
   ],
   "license": "MIT",
   "author": "SUSTUDIO",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "git@gitverse.ru:SUSTUDIO/n8n-nodes-gitverse.git"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/GitverseApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Gitverse/Gitverse.node.js",
+      "dist/nodes/GitverseWebhook/GitverseWebhook.node.js"
+    ]
   },
   "engines": {
     "node": ">=18.0"
@@ -22,9 +35,23 @@
     "n8n-core": "^2.16.1",
     "n8n-workflow": "^2.16.0"
   },
+  "dependencies": {
+    "axios": "^1.15.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
   "devDependencies": {
     "@types/express": "^4.17.0",
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
     "typescript": "^5.0.0"
   }
 }

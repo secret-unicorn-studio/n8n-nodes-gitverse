@@ -15,13 +15,18 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "isolatedModules": true,
     "incremental": false
   },
   "include": [
-    "**/*.ts"
+    "index.ts",
+    "nodes/**/*.ts",
+    "credentials/**/*.ts",
+    "utils/**/*.ts"
   ],
   "exclude": [
     "dist",
-    "node_modules"
+    "node_modules",
+    "**/*.test.ts"
   ]
 }

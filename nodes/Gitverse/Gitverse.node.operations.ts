@@ -4,45 +4,55 @@ import {
 } from 'n8n-workflow';
 import { AxiosInstance } from 'axios';
 
-interface OperationParams {
-	owner?: string;
-	repo?: string;
-	repository?: string;
-	branch?: string;
-	newBranch?: string;
-	baseBranch?: string;
-	filePath?: string;
-	content?: string;
-	commitMessage?: string;
-	sha?: string;
-	prIndex?: number;
-	head?: string;
-	base?: string;
-	title?: string;
-	body?: string;
-	maintainerCanModify?: boolean;
-	headBranch?: string;
-}
-
 /**
- * Parse owner/repo from parameters
+ * Parse owner/repo from node parameters
  */
 function parseRepository(
-	params: OperationParams,
+	ctx: IExecuteFunctions,
+	owner: unknown,
+	repo: unknown,
 	itemIndex: number
 ): { owner: string; repo: string } {
-	const owner = params.owner;
-	const repo = params.repo;
-
 	if (!owner || !repo) {
 		throw new NodeOperationError(
-			{ getNode: () => ({ name: '' }) } as any,
+			ctx.getNode(),
 			`Both owner and repo are required. Got: owner=${owner}, repo=${repo}`,
 			{ itemIndex }
 		);
 	}
 
-	return { owner, repo };
+	return { owner: owner as string, repo: repo as string };
+}
+
+/**
+ * Read flat owner/repo parameters and validate them
+ */
+function requireRepository(
+	ctx: IExecuteFunctions,
+	itemIndex: number
+): { owner: string; repo: string } {
+	const owner = ctx.getNodeParameter('owner', itemIndex);
+	const repo = ctx.getNodeParameter('repo', itemIndex);
+
+	return parseRepository(ctx, owner, repo, itemIndex);
+}
+
+/**
+ * Read a required string parameter
+ */
+function requireString(
+	ctx: IExecuteFunctions,
+	itemIndex: number,
+	name: string,
+	message: string
+): string {
+	const value = ctx.getNodeParameter(name, itemIndex);
+
+	if (value === undefined || value === null || value === '') {
+		throw new NodeOperationError(ctx.getNode(), message, { itemIndex });
+	}
+
+	return value as string;
 }
 
 /**
@@ -53,8 +63,7 @@ export async function getRepository(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
+	const { owner, repo } = requireRepository(this, itemIndex);
 
 	const response = await api.get(`/api/v1/repos/${owner}/${repo}`);
 	return response.data;
@@ -92,17 +101,13 @@ export async function getBranch(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
-	const branch = params.branch;
-
-	if (!branch) {
-		throw new NodeOperationError(
-			{ getNode: () => ({ name: '' }) } as any,
-			'Branch name is required',
-			{ itemIndex }
-		);
-	}
+	const { owner, repo } = requireRepository(this, itemIndex);
+	const branch = requireString(
+		this,
+		itemIndex,
+		'branch',
+		'Branch name is required'
+	);
 
 	const response = await api.get(`/api/v1/repos/${owner}/${repo}/branches/${branch}`);
 	return response.data;
@@ -116,8 +121,7 @@ export async function getManyBranches(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
+	const { owner, repo } = requireRepository(this, itemIndex);
 
 	const response = await api.get(`/api/v1/repos/${owner}/${repo}/branches`, {
 		params: { page: 1, perPage: 50 },
@@ -133,18 +137,15 @@ export async function createBranch(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
-	const newBranch = params.newBranch;
-	const baseBranch = params.baseBranch || 'main';
-
-	if (!newBranch) {
-		throw new NodeOperationError(
-			{ getNode: () => ({ name: '' }) } as any,
-			'New branch name is required',
-			{ itemIndex }
-		);
-	}
+	const { owner, repo } = requireRepository(this, itemIndex);
+	const newBranch = requireString(
+		this,
+		itemIndex,
+		'newBranch',
+		'New branch name is required'
+	);
+	const baseBranch =
+		(this.getNodeParameter('baseBranch', itemIndex, 'main') as string) || 'main';
 
 	// First, get the base branch to find its commit SHA
 	const baseBranchResponse = await api.get(
@@ -169,17 +170,13 @@ export async function getFile(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
-	const filePath = params.filePath;
-
-	if (!filePath) {
-		throw new NodeOperationError(
-			{ getNode: () => ({ name: '' }) } as any,
-			'File path is required',
-			{ itemIndex }
-		);
-	}
+	const { owner, repo } = requireRepository(this, itemIndex);
+	const filePath = requireString(
+		this,
+		itemIndex,
+		'filePath',
+		'File path is required'
+	);
 
 	const response = await api.get(
 		`/api/v1/repos/${owner}/${repo}/contents/${filePath}`
@@ -195,17 +192,19 @@ export async function createOrUpdateFile(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
-	const filePath = params.filePath;
-	const content = params.content;
-	const commitMessage = params.commitMessage || 'Update file via n8n';
-	const branch = params.branch || 'main';
-	const sha = params.sha;
+	const { owner, repo } = requireRepository(this, itemIndex);
+	const filePath = this.getNodeParameter('filePath', itemIndex, '') as string;
+	const content = this.getNodeParameter('content', itemIndex, '') as string;
+	const commitMessage =
+		(this.getNodeParameter('commitMessage', itemIndex, '') as string) ||
+		'Update file via n8n';
+	const branch =
+		(this.getNodeParameter('branch', itemIndex, '') as string) || 'main';
+	const sha = this.getNodeParameter('sha', itemIndex, '') as string;
 
 	if (!filePath || !content) {
 		throw new NodeOperationError(
-			{ getNode: () => ({ name: '' }) } as any,
+			this.getNode(),
 			'File path and content are required',
 			{ itemIndex }
 		);
@@ -237,13 +236,12 @@ export async function getPullRequest(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
-	const prIndex = params.prIndex;
+	const { owner, repo } = requireRepository(this, itemIndex);
+	const prIndex = this.getNodeParameter('prIndex', itemIndex) as number;
 
 	if (prIndex === undefined || prIndex === null) {
 		throw new NodeOperationError(
-			{ getNode: () => ({ name: '' }) } as any,
+			this.getNode(),
 			'Pull request index is required',
 			{ itemIndex }
 		);
@@ -261,8 +259,7 @@ export async function getManyPullRequests(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
+	const { owner, repo } = requireRepository(this, itemIndex);
 
 	const response = await api.get(`/api/v1/repos/${owner}/${repo}/pulls`, {
 		params: { page: 1, perPage: 50 },
@@ -278,17 +275,17 @@ export async function createPullRequest(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
-	const head = params.head;
-	const base = params.base || 'main';
-	const title = params.title;
-	const body = params.body;
-	const maintainerCanModify = params.maintainerCanModify !== false;
+	const { owner, repo } = requireRepository(this, itemIndex);
+	const head = this.getNodeParameter('head', itemIndex, '') as string;
+	const base = (this.getNodeParameter('base', itemIndex, '') as string) || 'main';
+	const title = this.getNodeParameter('title', itemIndex, '') as string;
+	const body = this.getNodeParameter('body', itemIndex, '') as string;
+	const maintainerCanModify =
+		this.getNodeParameter('maintainerCanModify', itemIndex, true) !== false;
 
 	if (!head || !base || !title) {
 		throw new NodeOperationError(
-			{ getNode: () => ({ name: '' }) } as any,
+			this.getNode(),
 			'Head, base, and title are required',
 			{ itemIndex }
 		);
@@ -313,14 +310,13 @@ export async function compareBranches(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
-	const baseBranch = params.baseBranch;
-	const headBranch = params.headBranch;
+	const { owner, repo } = requireRepository(this, itemIndex);
+	const baseBranch = this.getNodeParameter('baseBranch', itemIndex, '') as string;
+	const headBranch = this.getNodeParameter('headBranch', itemIndex, '') as string;
 
 	if (!baseBranch || !headBranch) {
 		throw new NodeOperationError(
-			{ getNode: () => ({ name: '' }) } as any,
+			this.getNode(),
 			'Base and head branches are required',
 			{ itemIndex }
 		);
@@ -340,8 +336,7 @@ export async function getManyCommits(
 	api: AxiosInstance,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
-	const params = this.getNodeParameter('json', itemIndex, {}) as OperationParams;
-	const { owner, repo } = parseRepository(params, itemIndex);
+	const { owner, repo } = requireRepository(this, itemIndex);
 
 	const response = await api.get(`/api/v1/repos/${owner}/${repo}/commits`, {
 		params: { page: 1, perPage: 50 },

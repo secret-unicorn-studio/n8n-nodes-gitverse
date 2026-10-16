@@ -1,10 +1,13 @@
 import {
+	IExecuteFunctions,
+	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
 	NodeConnectionTypes,
 } from 'n8n-workflow';
 
 import { gitverseNodeProperties } from './Gitverse.node.properties';
+import { execute as executeOperations } from './Gitverse.node.execute';
 
 export class Gitverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -29,4 +32,10 @@ export class Gitverse implements INodeType {
 		],
 		properties: gitverseNodeProperties,
 	};
+
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const returnData = await executeOperations.call(this);
+
+		return [returnData];
+	}
 }

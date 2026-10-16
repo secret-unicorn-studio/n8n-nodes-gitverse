@@ -13,26 +13,34 @@ Custom [n8n](https://n8n.io) nodes for interacting with [Gitverse](https://gitve
 
 ## Installation
 
-### Via environment variable (n8n >= 2.21)
+### Local Docker (development)
 
-Add to your `docker-compose.yml`:
+Mount the package into the container and point `N8N_CUSTOM_EXTENSIONS` at it:
 
 ```yaml
-environment:
-  N8N_COMMUNITY_PACKAGES_ENABLED: 'true'
-  N8N_COMMUNITY_PACKAGES_MANAGED_BY_ENV: 'true'
-  N8N_COMMUNITY_PACKAGES: '[{"name":"n8n-nodes-gitverse","version":"0.1.0"}]'
+services:
+  n8n:
+    environment:
+      - N8N_CUSTOM_EXTENSIONS=/home/node/custom-nodes/n8n-nodes-gitverse
+    volumes:
+      - ./custom_nodes/n8n-nodes-gitverse:/home/node/custom-nodes/n8n-nodes-gitverse
 ```
 
-### Manual installation
+Run `npm install && npm run build` on the host first — n8n loads the compiled
+files from `dist/`. This is how the node is wired in
+`n8n-automation/docker-compose.yml`.
+
+### From npm (once the package is published)
 
 ```bash
 docker exec -it n8n sh
-mkdir ~/.n8n/nodes
 cd ~/.n8n/nodes
 npm install n8n-nodes-gitverse
 # Restart n8n
 ```
+
+`N8N_COMMUNITY_PACKAGES` and `N8N_COMMUNITY_PACKAGES_MANAGED_BY_ENV` are not
+supported environment variables, so they cannot be used to install this node.
 
 ## Setup
 
@@ -86,8 +94,14 @@ npm install
 # Build
 npm run build
 
-# Watch mode
-npm run watch
+# Run tests
+npm test
+
+# Coverage report (thresholds enforced)
+npm run test:coverage
+
+# Re-run tests on change
+npm run test:watch
 ```
 
 ## Project Structure
@@ -114,6 +128,8 @@ n8n-nodes-gitverse/
 ├── tsconfig.json
 └── README.md
 ```
+
+Unit tests are colocated with the sources as `*.test.ts` files.
 
 ## License
 
