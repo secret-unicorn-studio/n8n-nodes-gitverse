@@ -1,0 +1,8 @@
+{
+	"node": "n8n-nodes.gitverse.nodes.gitverse.gitverse",
+	"nodeVersion": "1.0",
+	"simpleVersion": "1.0.0",
+	"upgrades": [
+		"1.0"
+	]
+}

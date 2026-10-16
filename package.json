@@ -1,0 +1,30 @@
+{
+  "name": "n8n-nodes-gitverse",
+  "version": "0.1.0",
+  "description": "n8n nodes for Gitverse (Gitea) API",
+  "keywords": [
+    "n8n",
+    "n8n-nodes",
+    "gitverse",
+    "gitea"
+  ],
+  "license": "MIT",
+  "author": "SUSTUDIO",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git@gitverse.ru:SUSTUDIO/n8n-nodes-gitverse.git"
+  },
+  "engines": {
+    "node": ">=18.0"
+  },
+  "peerDependencies": {
+    "n8n-core": "^2.16.1",
+    "n8n-workflow": "^2.16.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
