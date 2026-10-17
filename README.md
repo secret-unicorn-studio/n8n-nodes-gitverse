@@ -115,6 +115,26 @@ Observed against the live API while building the issue and label operations:
 - `GET /assignments/{id}` (Smartclass) is implemented from the documentation alone; the test
   account has no assignments.
 
+### CI/CD specifics
+
+The CI/CD endpoints live in a separate **Gitverse CI/CD** node, because they are a different
+kind of resource than the ones above.
+
+- Workflows are files under `.gitverse/workflows/*.yaml`; the dispatch endpoints take the file
+  name (or the numeric ID) and the branch as a query parameter, and the inputs of the workflow
+  as a flat JSON body.
+- **The Actions API is not enabled for our test account.** Every Actions endpoint answers an
+  empty `404 NOT_FOUND` for the test repository, even after a workflow file was committed to it,
+  while neighbouring paths such as `/actions/runner` answer `400`. The paths of the node follow
+  the documentation, including its `curl` examples, but no CI/CD call could be verified against
+  the live API — only unit tested. The feature has to be enabled for the account before the node
+  can be trusted in production.
+- `PUT .../secrets/{name}` takes the secret value as a **query parameter**, not in the body.
+- `GET .../artifacts/{id}/zip` answers with a redirect rather than with the archive; the node
+  reports the target of the redirect as `download_url` instead of downloading the file.
+- Variables, secrets and runners exist both for a repository and for an organization; the node
+  exposes one set of operations with a **Scope** switch rather than duplicating everything.
+
 ### Release specifics
 
 - On a repository without releases, `GET /releases` answers `404 REPO_NOT_FOUND` instead of an
@@ -163,6 +183,9 @@ Observed against the live API while building the issue and label operations:
 - **Assignment** — Get a Smartclass assignment
 - **Repository git data** — Read a tree and refs, create and delete refs, create trees and
   commits, migrate a repository, change a collaborator permission
+- **CI/CD node** — A separate **Gitverse CI/CD** node covers workflows (list, get, runs,
+  dispatch parameters, manual dispatch), runs (list, get, by index, jobs, cancel, rerun), jobs
+  (get, logs, rerun), variables, secrets, self-hosted runners and artifacts
 - **Webhook** — Trigger node receiving the Gitverse webhook deliveries
 
 Repository and branch fields are searchable pickers: select from a list, paste a repository URL,
@@ -236,6 +259,21 @@ Main node for all Gitverse API operations.
 | Star | Check, Add, Remove, Get Many |
 | Package | Get Versions, Delete Version, Delete |
 | Assignment | Get |
+
+### Gitverse CI/CD
+
+| Resource | Operations |
+|----------|------------|
+| Workflow | Get, Get Many, Get Runs, Get Dispatch Parameters, Dispatch |
+| Run | Get, Get Many, Get by Index, Get Jobs, Get Jobs by Index, Cancel, Rerun |
+| Job | Get, Get Logs, Rerun |
+| Variable | Get, Get Many, Create, Update, Delete |
+| Secret | Get, Get Many, Set, Delete |
+| Runner | Get, Get Many, Create Registration Token, Delete |
+| Artifact | Get, Get Many, Get Download URL, Delete |
+
+Variables, secrets and runners work on a repository or on an organization, selected with the
+**Scope** parameter.
 
 ### Gitverse Webhook
 

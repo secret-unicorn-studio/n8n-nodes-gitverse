@@ -25,6 +25,7 @@
     ],
     "nodes": [
       "dist/nodes/Gitverse/Gitverse.node.js",
+      "dist/nodes/GitverseCICD/GitverseCICD.node.js",
       "dist/nodes/GitverseWebhook/GitverseWebhook.node.js"
     ]
   },
