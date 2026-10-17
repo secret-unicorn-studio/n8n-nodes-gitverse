@@ -1,9 +1,17 @@
-import { Gitverse } from './Gitverse.node';
 import { NodeConnectionTypes } from 'n8n-workflow';
+
+import { Gitverse } from './Gitverse.node';
+
+jest.mock('./Gitverse.node.execute', () => ({
+	execute: jest.fn().mockResolvedValue([{ json: { ok: true } }]),
+}));
 
 describe('Gitverse node', () => {
 	const node = new Gitverse();
 	const desc = node.description;
+
+	const findProperty = (name: string) => desc.properties!.find((p) => p.name === name);
+	const findProperties = (name: string) => desc.properties!.filter((p) => p.name === name);
 
 	it('should have correct displayName', () => {
 		expect(desc.displayName).toBe('Gitverse');
@@ -22,9 +30,12 @@ describe('Gitverse node', () => {
 		expect(desc.subtitle).toContain('resource');
 	});
 
-	it('should have description', () => {
+	it('should describe the node', () => {
 		expect(desc.description).toContain('Gitverse');
-		expect(desc.description).toContain('Gitea');
+	});
+
+	it('should have the Gitverse icon', () => {
+		expect(desc.icon).toBe('file:gitverse.svg');
 	});
 
 	it('should have correct group', () => {
@@ -39,76 +50,120 @@ describe('Gitverse node', () => {
 		expect(desc.outputs).toEqual([NodeConnectionTypes.Main]);
 	});
 
-	it('should require gitverseApi credentials', () => {
-		expect(desc.credentials).toBeDefined();
+	it('should require the Gitverse API credentials', () => {
 		expect(desc.credentials!.length).toBe(1);
 		expect(desc.credentials![0].name).toBe('gitverseApi');
 		expect(desc.credentials![0].required).toBe(true);
 	});
 
 	it('should have properties array', () => {
-		expect(desc.properties).toBeDefined();
 		expect(Array.isArray(desc.properties)).toBe(true);
-		expect(desc.properties!.length).toBeGreaterThan(10);
+		expect(desc.properties!.length).toBeGreaterThan(20);
 	});
 
-	it('should define all 5 resources', () => {
-		const resourceProp = desc.properties!.find((p) => p.name === 'resource');
-		expect(resourceProp).toBeDefined();
-		const options = (resourceProp as any).options as any[];
-		const values = options.map((o) => o.value);
-		expect(values).toContain('repository');
-		expect(values).toContain('branch');
-		expect(values).toContain('file');
-		expect(values).toContain('pullRequest');
-		expect(values).toContain('commit');
+	it('should define the documented resources', () => {
+		const resourceProp = findProperty('resource') as any;
+		const values = resourceProp.options.map((o: any) => o.value);
+
+		expect(values).toEqual(['branch', 'commit', 'file', 'pullRequest', 'repository']);
 	});
 
-	it('should have operation options', () => {
-		const operationProp = desc.properties!.find((p) => p.name === 'operation');
-		expect(operationProp).toBeDefined();
-		const options = (operationProp as any).options as any[];
-		expect(options.length).toBeGreaterThan(10);
+	it('should scope every operation to a resource', () => {
+		const operationProp = findProperty('operation') as any;
+		const options = operationProp.options as any[];
+
+		expect(options.length).toBeGreaterThan(15);
+
+		for (const option of options) {
+			expect(option.displayOptions?.show?.resource).toBeDefined();
+			expect(option.action).toBeDefined();
+		}
 	});
 
-	it('should have owner and repo fields', () => {
-		const ownerProp = desc.properties!.find((p) => p.name === 'owner');
-		expect(ownerProp).toBeDefined();
-		expect((ownerProp as any).required).toBe(true);
+	it('should expose the repository as a searchable resource locator', () => {
+		const repositoryProp = findProperty('repository') as any;
 
-		const repoProp = desc.properties!.find((p) => p.name === 'repo');
-		expect(repoProp).toBeDefined();
-		expect((repoProp as any).required).toBe(true);
+		expect(repositoryProp).toBeDefined();
+		expect(repositoryProp.type).toBe('resourceLocator');
+		expect(repositoryProp.required).toBe(true);
+		expect(repositoryProp.default).toEqual({ mode: 'list', value: '' });
+
+		const modes = repositoryProp.modes.map((m: any) => m.name);
+		expect(modes).toEqual(['list', 'url', 'name']);
+		expect(repositoryProp.modes[0].typeOptions).toEqual({
+			searchListMethod: 'searchRepositories',
+			searchable: true,
+		});
 	});
 
-	it('should have filters for list operations', () => {
-		const filtersProp = desc.properties!.find((p) => p.name === 'filters');
-		expect(filtersProp).toBeDefined();
+	it('should expose branches as a resource locator', () => {
+		const branchProps = findProperties('branch') as any[];
+		const locator = branchProps.find((p) => p.type === 'resourceLocator');
+
+		expect(locator).toBeDefined();
+		expect(locator.modes.map((m: any) => m.name)).toEqual(['list', 'name']);
+		expect(locator.modes[0].typeOptions).toEqual({
+			searchListMethod: 'searchBranches',
+			searchable: true,
+		});
 	});
 
-	it('should have file-related fields', () => {
-		const filePathProp = desc.properties!.find((p) => p.name === 'filePath');
-		expect(filePathProp).toBeDefined();
+	it('should offer returnAll and limit on list operations', () => {
+		const returnAll = findProperty('returnAll') as any;
+		const limit = findProperty('limit') as any;
 
-		const contentProp = desc.properties!.find((p) => p.name === 'content');
-		expect(contentProp).toBeDefined();
-
-		const commitMsgProp = desc.properties!.find((p) => p.name === 'commitMessage');
-		expect(commitMsgProp).toBeDefined();
+		expect(returnAll.type).toBe('boolean');
+		expect(returnAll.default).toBe(false);
+		expect(limit.type).toBe('number');
+		expect(limit.typeOptions).toEqual({ minValue: 1 });
+		expect(limit.displayOptions.show.returnAll).toEqual([false]);
 	});
 
-	it('should have PR-related fields', () => {
-		const prIndexProp = desc.properties!.find((p) => p.name === 'prIndex');
-		expect(prIndexProp).toBeDefined();
+	it('should have repository creation fields', () => {
+		expect(findProperty('name')).toBeDefined();
+		expect(findProperty('autoInit')).toBeDefined();
+		expect(findProperty('updateFields')).toBeDefined();
+	});
 
-		const headProp = desc.properties!.find((p) => p.name === 'head');
-		expect(headProp).toBeDefined();
+	it('should have collaborator fields', () => {
+		expect(findProperty('username')).toBeDefined();
+		expect(findProperty('permission')).toBeDefined();
+	});
 
-		const titleProp = desc.properties!.find((p) => p.name === 'title');
-		expect(titleProp).toBeDefined();
+	it('should have file fields', () => {
+		expect(findProperty('filePath')).toBeDefined();
+		expect(findProperty('content')).toBeDefined();
+		expect(findProperty('commitMessage')).toBeDefined();
+		expect(findProperty('ref')).toBeDefined();
+	});
+
+	it('should have commit compare fields', () => {
+		expect(findProperty('path')).toBeDefined();
+		expect(findProperties('sha').length).toBeGreaterThan(1);
+	});
+
+	it('should have pull request fields', () => {
+		expect(findProperty('pullRequestNumber')).toBeDefined();
+		expect(findProperty('title')).toBeDefined();
+		expect(findProperty('head')).toBeDefined();
+		expect(findProperty('base')).toBeDefined();
+		expect(findProperty('body')).toBeDefined();
+		expect(findProperty('state')).toBeDefined();
+	});
+
+	it('should register the list search methods', () => {
+		expect(node.methods!.listSearch).toBeDefined();
+		expect(typeof node.methods!.listSearch!.searchRepositories).toBe('function');
+		expect(typeof node.methods!.listSearch!.searchBranches).toBe('function');
 	});
 
 	it('should implement an execute method', () => {
 		expect(typeof node.execute).toBe('function');
+	});
+
+	it('should wrap the operation output in the outer array', async () => {
+		const result = await node.execute!.call({} as any);
+
+		expect(result).toEqual([[{ json: { ok: true } }]]);
 	});
 });

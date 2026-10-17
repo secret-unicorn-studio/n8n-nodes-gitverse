@@ -4,54 +4,59 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 import { AxiosInstance } from 'axios';
+
 import { createApiClient, GitverseApiOptions } from '../../utils/api';
-import {
-	getRepository,
-	getManyRepositories,
-	getBranch,
-	getManyBranches,
-	createBranch,
-	getFile,
-	createOrUpdateFile,
-	getPullRequest,
-	getManyPullRequests,
-	createPullRequest,
-	compareBranches,
-	getManyCommits,
-} from './Gitverse.node.operations';
+import * as branch from './actions/branch.operations';
+import * as commit from './actions/commit.operations';
+import * as file from './actions/file.operations';
+import * as pullRequest from './actions/pullRequest.operations';
+import * as repository from './actions/repository.operations';
+import { toJsonRecord } from './utils/params';
 
-interface OperationsMap {
-	[key: string]: {
-		[key: string]: (this: IExecuteFunctions, api: AxiosInstance, itemIndex: number) => Promise<any>;
-	};
-}
+export type OperationFunction = (
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+) => Promise<unknown>;
 
-const operations: OperationsMap = {
-	repository: {
-		get: getRepository,
-		getAll: getManyRepositories,
-	},
+type ResourceOperations = Record<string, OperationFunction>;
+
+export const operations: Record<string, ResourceOperations> = {
 	branch: {
-		get: getBranch,
-		getAll: getManyBranches,
-		create: createBranch,
-	},
-	file: {
-		get: getFile,
-		createOrUpdate: createOrUpdateFile,
-	},
-	pullRequest: {
-		get: getPullRequest,
-		getAll: getManyPullRequests,
-		create: createPullRequest,
-		compare: compareBranches,
+		get: branch.getBranch,
+		getAll: branch.getManyBranches,
+		create: branch.createBranch,
+		delete: branch.deleteBranch,
 	},
 	commit: {
-		getAll: getManyCommits,
+		get: commit.getCommit,
+		getAll: commit.getManyCommits,
+		compare: commit.compareCommits,
+	},
+	file: {
+		get: file.getFile,
+		createOrUpdate: file.createOrUpdateFile,
+		delete: file.deleteFile,
+	},
+	pullRequest: {
+		get: pullRequest.getPullRequest,
+		getAll: pullRequest.getManyPullRequests,
+		create: pullRequest.createPullRequest,
+	},
+	repository: {
+		get: repository.getRepository,
+		getAll: repository.getManyRepositories,
+		create: repository.createRepository,
+		update: repository.updateRepository,
+		delete: repository.deleteRepository,
+		getCollaborators: repository.getCollaborators,
+		addCollaborator: repository.addCollaborator,
+		getLanguages: repository.getLanguages,
+		fork: repository.forkRepository,
 	},
 };
 
-export async function execute(this: IExecuteFunctions) {
+export async function execute(this: IExecuteFunctions): Promise<INodeExecutionData[]> {
 	const items = this.getInputData();
 	const returnData: INodeExecutionData[] = [];
 
@@ -59,34 +64,38 @@ export async function execute(this: IExecuteFunctions) {
 	const operation = this.getNodeParameter('operation', 0) as string;
 	const credentials = await this.getCredentials<GitverseApiOptions>('gitverseApi');
 
-	const baseUrl = credentials.baseUrl;
-	const token = credentials.token;
-	const api = createApiClient({ baseUrl, token, retries: credentials.retries });
+	const api = createApiClient({
+		baseUrl: credentials.baseUrl,
+		token: credentials.token,
+		retries: credentials.retries,
+	});
+
+	const resourceOps = operations[resource];
+
+	if (!resourceOps) {
+		throw new NodeOperationError(this.getNode(), `Unknown resource: ${resource}`);
+	}
+
+	const operationFn = resourceOps[operation];
+
+	if (!operationFn) {
+		throw new NodeOperationError(
+			this.getNode(),
+			`Unknown operation: ${operation} for resource ${resource}`
+		);
+	}
 
 	for (let i = 0; i < items.length; i++) {
 		try {
-			const resourceOps = operations[resource];
+			const result = await operationFn.call(this, api, i);
+			const entries = Array.isArray(result) ? result : [result];
 
-			if (!resourceOps) {
-				throw new NodeOperationError(
-					this.getNode(),
-					`Unknown resource: ${resource}`,
-					{ itemIndex: i }
-				);
+			for (const entry of entries) {
+				returnData.push({
+					json: toJsonRecord(entry),
+					pairedItem: { item: i },
+				});
 			}
-
-			const opFn = resourceOps[operation];
-
-			if (!opFn) {
-				throw new NodeOperationError(
-					this.getNode(),
-					`Unknown operation: ${operation} for resource ${resource}`,
-					{ itemIndex: i }
-				);
-			}
-
-			const result = await opFn.call(this, api, i);
-			returnData.push({ json: result });
 		} catch (error) {
 			if (this.continueOnFail()) {
 				returnData.push({
@@ -95,6 +104,7 @@ export async function execute(this: IExecuteFunctions) {
 				});
 				continue;
 			}
+
 			throw error;
 		}
 	}

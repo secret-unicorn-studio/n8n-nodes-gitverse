@@ -26,12 +26,16 @@ self-hosted base URLs are used as-is.
 
 ## Features
 
-- **Repository** — Get, list repositories
-- **Branch** — Get, list, create branches
-- **File** — Get, create/update file contents
-- **Pull Request** — Get, list, create PRs, compare branches
-- **Commit** — List commits
+- **Repository** — Get, list (own or organization), create, update, delete, fork, language
+  breakdown, list and add collaborators
+- **Branch** — Get, list, create from a base branch, delete
+- **File** — Read a file or list a directory, create/update, delete
+- **Commit** — Get, list (branch and path filters), compare two references
+- **Pull Request** — Get, list, create
 - **Webhook** — Receive push events from Gitverse
+
+Repository and branch fields are searchable pickers: select from a list, paste a repository URL,
+or type `owner/repo` / a branch name directly.
 
 ## Installation
 

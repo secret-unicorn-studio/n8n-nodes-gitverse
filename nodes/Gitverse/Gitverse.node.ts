@@ -8,6 +8,7 @@ import {
 
 import { gitverseNodeProperties } from './Gitverse.node.properties';
 import { execute as executeOperations } from './Gitverse.node.execute';
+import { listSearch } from './methods/loadOptions';
 
 export class Gitverse implements INodeType {
 	description: INodeTypeDescription = {
@@ -17,7 +18,7 @@ export class Gitverse implements INodeType {
 		group: ['output'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Interact with Gitverse (Gitea) API',
+		description: 'Interact with the Gitverse API',
 		defaults: {
 			name: 'Gitverse',
 		},
@@ -30,6 +31,10 @@ export class Gitverse implements INodeType {
 			},
 		],
 		properties: gitverseNodeProperties,
+	};
+
+	methods = {
+		listSearch,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

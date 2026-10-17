@@ -15,7 +15,7 @@ const config: Config = {
 			statements: 90,
 		},
 	},
-	coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
+	coveragePathIgnorePatterns: ['/node_modules/', '/dist/', '/__testutils__/'],
 	testPathIgnorePatterns: ['/node_modules/', '/dist/'],
 	transform: {
 		'^.+\\.ts$': [
