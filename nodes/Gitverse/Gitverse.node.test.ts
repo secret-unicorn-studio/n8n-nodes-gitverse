@@ -69,6 +69,7 @@ describe('Gitverse node', () => {
 			'branch',
 			'commit',
 			'file',
+			'hook',
 			'issue',
 			'label',
 			'pullRequest',
@@ -256,6 +257,33 @@ describe('Gitverse node', () => {
 		expect(findProperty('releaseBody')).toBeDefined();
 		expect(findProperty('assetId')).toBeDefined();
 		expect(findProperty('assetName')).toBeDefined();
+	});
+
+	it('should expose the documented hook operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const hookOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('hook'))
+			.map((option) => option.value);
+
+		expect([...hookOperations].sort()).toEqual(['create', 'delete', 'get', 'getAll', 'update']);
+	});
+
+	it('should have hook fields with the documented events', () => {
+		expect(findProperty('hookId')).toBeDefined();
+		expect(findProperty('url')).toBeDefined();
+
+		const eventsProp = findProperty('events') as any;
+		const values = eventsProp.options.map((option: any) => option.value);
+
+		expect(values).toEqual([
+			'create',
+			'delete',
+			'fork',
+			'pull_request',
+			'pull_request_comment',
+			'pull_request_review',
+			'push',
+		]);
 	});
 
 	it('should register the list search methods', () => {

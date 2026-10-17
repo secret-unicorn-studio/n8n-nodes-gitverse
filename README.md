@@ -71,6 +71,18 @@ Observed against the live API while building the issue and label operations:
 - Release assets are uploaded as `multipart/form-data` with a `name` field next to the
   `attachment` file, and there uploads work — unlike issue attachments on the same repository.
 
+### Webhook specifics
+
+- Only seven events can be registered on a hook: `create`, `delete`, `fork`, `push`,
+  `pull_request`, `pull_request_comment` and `pull_request_review`. Every other value, the
+  wildcard `*` included, is rejected with `400`.
+- The `type` of a hook is always `repository`, whatever is sent; only webhooks are supported.
+- A hook carries no secret, so deliveries cannot be verified by a signature. The optional
+  `authorization_header` and `branch_filter` settings are the only way to authenticate and to
+  narrow the deliveries.
+- `PATCH` accepts `events` to replace the list and `add_events` / `remove_events` to change it
+  incrementally, which is what the **Update** operation exposes.
+
 ## Features
 
 - **Repository** — Get, list (own or organization), create, update, delete, fork, language
@@ -85,7 +97,8 @@ Observed against the live API while building the issue and label operations:
 - **Label** — Get, list, create, update (rename included)
 - **Release** — Get by ID or tag, list, create, update, delete by ID or tag, list assets, upload
   an asset, delete an asset
-- **Webhook** — Receive push events from Gitverse
+- **Hook** — Get, list, create, update (events, config, activation), delete
+- **Webhook** — Trigger node receiving the Gitverse webhook deliveries
 
 Repository and branch fields are searchable pickers: select from a list, paste a repository URL,
 or type `owner/repo` / a branch name directly.
@@ -151,16 +164,27 @@ Main node for all Gitverse API operations.
 | Issue | Get, Get Many, Update, Get Comments, Get Comment, Create Comment, Update Comment, Delete Comment, Add Comment Reaction, Delete Comment Reaction, Get Timeline, Add Comment Attachment, Delete Comment Attachment |
 | Label | Get, Get Many, Create, Update |
 | Release | Get, Get Many, Get by Tag, Create, Update, Delete, Delete by Tag, Get Assets, Upload Asset, Delete Asset |
+| Hook | Get, Get Many, Create, Update, Delete |
 
 ### Gitverse Webhook
 
-Trigger node for receiving Gitverse webhook events.
+Trigger node for receiving Gitverse webhook deliveries. Point a **Hook** resource at the
+production URL of this node, or register the hook by hand.
 
 #### Supported Events
 
-- `push` — Code push events
-- `pull_request` — PR events
-- `issues` — Issue events
+`create`, `delete`, `fork`, `push`, `pull_request`, `pull_request_comment`,
+`pull_request_review` — the same list the API accepts when a hook is created — plus an
+**All Events** wildcard that is handled by the node itself.
+
+Gitverse sends the event name in a header that is not part of the public documentation, so the
+node looks at `X-Gitea-Event`, `X-Gitverse-Event`, `X-Gitea-Hook`, `X-Forgejo-Event` and
+`X-GitHub-Event` in turn, and falls back to the shape of the payload when none of them is set.
+Reviews and comments arrive under the `pull_request` event and are refined from the payload.
+The output item carries `event`, `delivery`, `repository`, `payload` and `timestamp`.
+
+The **Repository** filter is optional: leave it empty to accept every repository, or set it to
+`owner/repo` (or just `repo`) to only run the workflow for one repository.
 
 ## Development
 

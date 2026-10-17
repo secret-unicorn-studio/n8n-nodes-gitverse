@@ -9,6 +9,7 @@ import { createApiClient, GitverseApiOptions } from '../../utils/api';
 import * as branch from './actions/branch.operations';
 import * as commit from './actions/commit.operations';
 import * as file from './actions/file.operations';
+import * as hook from './actions/hook.operations';
 import * as issue from './actions/issue.operations';
 import * as label from './actions/label.operations';
 import * as pullRequest from './actions/pullRequest.operations';
@@ -40,6 +41,13 @@ export const operations: Record<string, ResourceOperations> = {
 		get: file.getFile,
 		createOrUpdate: file.createOrUpdateFile,
 		delete: file.deleteFile,
+	},
+	hook: {
+		get: hook.getHook,
+		getAll: hook.getManyHooks,
+		create: hook.createHook,
+		update: hook.updateHook,
+		delete: hook.deleteHook,
 	},
 	issue: {
 		get: issue.getIssue,

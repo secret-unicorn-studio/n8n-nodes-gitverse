@@ -1,6 +1,8 @@
 import { NodeConnectionTypes } from 'n8n-workflow';
 import {
 	GitverseWebhook,
+	detectEvent,
+	detectEventFromPayload,
 	gitverseWebhookProperties,
 } from './GitverseWebhook.node';
 
@@ -8,17 +10,23 @@ interface WebhookOptions {
 	body?: Record<string, any>;
 	headers?: Record<string, any>;
 	repository?: string;
+	events?: string[];
 }
 
 function createWebhookContext({
 	body = {},
 	headers = {},
 	repository = '',
+	events = ['*'],
 }: WebhookOptions = {}): any {
+	const params: Record<string, any> = { repository, events };
+
 	return {
 		getBodyData: jest.fn(() => body),
 		getHeaderData: jest.fn(() => headers),
-		getNodeParameter: jest.fn(() => repository),
+		getNodeParameter: jest.fn((name: string, fallback?: any) =>
+			name in params ? params[name] : fallback
+		),
 	};
 }
 
@@ -64,18 +72,28 @@ describe('GitverseWebhook node', () => {
 			expect(desc.properties).toBe(gitverseWebhookProperties);
 		});
 
-		it('should define repository and events properties', () => {
-			const repoProp = gitverseWebhookProperties.find(
-				(p) => p.name === 'repository'
-			);
-			expect(repoProp).toBeDefined();
-			expect(repoProp.required).toBe(true);
-
+		it('should offer the documented events and a wildcard', () => {
 			const eventsProp = gitverseWebhookProperties.find((p) => p.name === 'events');
-			expect(eventsProp).toBeDefined();
-			expect(eventsProp.default).toEqual(['push']);
 			const values = (eventsProp.options as any[]).map((o) => o.value);
-			expect(values).toEqual(['push', 'pull_request', 'issues']);
+
+			expect(eventsProp.default).toEqual(['*']);
+			expect(values).toEqual([
+				'*',
+				'create',
+				'delete',
+				'fork',
+				'pull_request',
+				'pull_request_comment',
+				'pull_request_review',
+				'push',
+			]);
+		});
+
+		it('should keep the repository filter optional', () => {
+			const repoProp = gitverseWebhookProperties.find((p) => p.name === 'repository');
+
+			expect(repoProp.required).toBeUndefined();
+			expect(repoProp.default).toBe('');
 		});
 
 		it('should implement a webhook method', () => {
@@ -83,29 +101,65 @@ describe('GitverseWebhook node', () => {
 		});
 	});
 
+	describe('detectEvent', () => {
+		it('should read every supported event header', () => {
+			expect(detectEvent({ 'x-gitea-event': 'push' }, {})).toBe('push');
+			expect(detectEvent({ 'x-gitverse-event': 'fork' }, {})).toBe('fork');
+			expect(detectEvent({ 'x-gitea-hook': 'delete' }, {})).toBe('delete');
+			expect(detectEvent({ 'x-forgejo-event': 'create' }, {})).toBe('create');
+			expect(detectEvent({ 'x-github-event': 'pull_request' }, {})).toBe('pull_request');
+		});
+
+		it('should ignore empty header values', () => {
+			expect(detectEvent({ 'x-gitea-event': '' }, { commits: [] })).toBe('push');
+		});
+
+		it('should fall back to the payload', () => {
+			expect(detectEventFromPayload({ pull_request: {} })).toBe('pull_request');
+			expect(detectEventFromPayload({ review: {} })).toBe('pull_request_review');
+			expect(detectEventFromPayload({ comment: {} })).toBe('pull_request_comment');
+			expect(detectEventFromPayload({ commits: [] })).toBe('push');
+			expect(detectEventFromPayload({ forkee: {} })).toBe('fork');
+			expect(detectEventFromPayload({ ref_type: 'branch' })).toBe('create');
+			expect(detectEventFromPayload({})).toBe('');
+		});
+	});
+
 	describe('webhook', () => {
-		it('should return event, payload and timestamp', async () => {
+		it('should return the event, the delivery and the payload', async () => {
 			const ctx = createWebhookContext({
 				body: { repository: { full_name: 'SUSTUDIO/n8n-nodes-gitverse' } },
-				headers: { 'x-gitea-hook': 'push' },
+				headers: { 'x-gitea-event': 'push', 'x-gitea-delivery': 'abc-123' },
 			});
 
 			const result = await node.webhook.call(ctx);
+			const json = result.workflowData![0][0].json as any;
 
 			expect(result.webhookResponse).toBe(200);
-			expect(result.workflowData).toHaveLength(1);
-			const json = result.workflowData![0][0].json as any;
 			expect(json.event).toBe('push');
+			expect(json.delivery).toBe('abc-123');
+			expect(json.repository).toBe('SUSTUDIO/n8n-nodes-gitverse');
 			expect(json.payload).toEqual({
 				repository: { full_name: 'SUSTUDIO/n8n-nodes-gitverse' },
 			});
 			expect(new Date(json.timestamp).toISOString()).toBe(json.timestamp);
 		});
 
-		it('should forward the event type from the header', async () => {
+		it('should report an empty delivery when the header is missing', async () => {
+			const ctx = createWebhookContext({
+				body: { commits: [] },
+				headers: { 'x-gitea-event': 'push' },
+			});
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData![0][0].json.delivery).toBe('');
+		});
+
+		it('should carry the event type from the header', async () => {
 			const ctx = createWebhookContext({
 				body: {},
-				headers: { 'x-gitea-hook': 'pull_request' },
+				headers: { 'x-gitea-event': 'pull_request' },
 			});
 
 			const result = await node.webhook.call(ctx);
@@ -113,18 +167,101 @@ describe('GitverseWebhook node', () => {
 			expect(result.workflowData![0][0].json.event).toBe('pull_request');
 		});
 
-		it('should default the event type to push', async () => {
-			const ctx = createWebhookContext({ body: {}, headers: {} });
+		it('should refine a pull request comment delivery', async () => {
+			const ctx = createWebhookContext({
+				headers: { 'x-gitea-event': 'pull_request' },
+				body: { comment: { id: 1 }, pull_request: { number: 2 } },
+			});
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData![0][0].json.event).toBe('pull_request_comment');
+		});
+
+		it('should refine a reviewed pull request delivery', async () => {
+			const ctx = createWebhookContext({
+				headers: { 'x-gitea-event': 'pull_request' },
+				body: { review: { id: 1 } },
+			});
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData![0][0].json.event).toBe('pull_request_review');
+		});
+
+		it('should keep a foreign event name untouched', async () => {
+			const ctx = createWebhookContext({
+				headers: { 'x-gitea-event': 'issues' },
+				body: { issue: { number: 1 } },
+			});
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData![0][0].json.event).toBe('issues');
+		});
+
+		it('should fall back to the payload when there is no header', async () => {
+			const ctx = createWebhookContext({ body: { commits: [{ id: 'a' }] } });
 
 			const result = await node.webhook.call(ctx);
 
 			expect(result.workflowData![0][0].json.event).toBe('push');
 		});
 
+		it('should keep an unknown event', async () => {
+			const ctx = createWebhookContext({ body: {}, events: ['*'] });
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData![0][0].json.event).toBe('');
+		});
+
+		it('should run when the wildcard is selected', async () => {
+			const ctx = createWebhookContext({
+				headers: { 'x-gitea-event': 'pull_request' },
+				events: ['*'],
+			});
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData).toHaveLength(1);
+		});
+
+		it('should run when no event is selected at all', async () => {
+			const ctx = createWebhookContext({
+				headers: { 'x-gitea-event': 'pull_request' },
+				events: [],
+			});
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData).toHaveLength(1);
+		});
+
+		it('should skip an event the node does not listen for', async () => {
+			const ctx = createWebhookContext({
+				headers: { 'x-gitea-event': 'fork' },
+				events: ['push'],
+			});
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result).toEqual({ webhookResponse: 200 });
+			expect(result.workflowData).toBeUndefined();
+		});
+
+		it('should pass an unknown event through a filter', async () => {
+			const ctx = createWebhookContext({ body: {}, events: ['push'] });
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData).toHaveLength(1);
+		});
+
 		it('should skip the workflow when the repository filter does not match', async () => {
 			const ctx = createWebhookContext({
 				body: { repository: { full_name: 'someone/other-repo' } },
-				headers: { 'x-gitea-hook': 'push' },
+				headers: { 'x-gitea-event': 'push' },
 				repository: 'SUSTUDIO/n8n-nodes-gitverse',
 			});
 
@@ -134,11 +271,11 @@ describe('GitverseWebhook node', () => {
 			expect(result.workflowData).toBeUndefined();
 		});
 
-		it('should pass through when the repository filter matches', async () => {
+		it('should match the filter case-insensitively', async () => {
 			const ctx = createWebhookContext({
 				body: { repository: { full_name: 'SUSTUDIO/n8n-nodes-gitverse' } },
-				headers: { 'x-gitea-hook': 'push' },
-				repository: 'SUSTUDIO/n8n-nodes-gitverse',
+				headers: { 'x-gitea-event': 'push' },
+				repository: 'sustudio/n8n-nodes-gitverse',
 			});
 
 			const result = await node.webhook.call(ctx);
@@ -146,10 +283,32 @@ describe('GitverseWebhook node', () => {
 			expect(result.workflowData).toHaveLength(1);
 		});
 
+		it('should accept the bare repository name as a filter', async () => {
+			const ctx = createWebhookContext({
+				body: { repository: { full_name: 'SUSTUDIO/n8n-nodes-gitverse' } },
+				headers: { 'x-gitea-event': 'push' },
+				repository: 'n8n-nodes-gitverse',
+			});
+
+			const result = await node.webhook.call(ctx);
+
+			expect(result.workflowData).toHaveLength(1);
+		});
+
+		it('should tolerate a filter with a .git suffix', async () => {
+			const ctx = createWebhookContext({
+				body: { repository: { full_name: 'SUSTUDIO/n8n-nodes-gitverse' } },
+				headers: { 'x-gitea-event': 'push' },
+				repository: 'SUSTUDIO/n8n-nodes-gitverse.git',
+			});
+
+			expect((await node.webhook.call(ctx)).workflowData).toHaveLength(1);
+		});
+
 		it('should fall back to repository.name when full_name is absent', async () => {
 			const ctx = createWebhookContext({
 				body: { repository: { name: 'n8n-nodes-gitverse' } },
-				headers: { 'x-gitea-hook': 'push' },
+				headers: { 'x-gitea-event': 'push' },
 				repository: 'n8n-nodes-gitverse',
 			});
 
@@ -161,13 +320,14 @@ describe('GitverseWebhook node', () => {
 		it('should pass through when the payload has no repository', async () => {
 			const ctx = createWebhookContext({
 				body: {},
-				headers: { 'x-gitea-hook': 'push' },
+				headers: { 'x-gitea-event': 'push' },
 				repository: 'SUSTUDIO/n8n-nodes-gitverse',
 			});
 
 			const result = await node.webhook.call(ctx);
 
 			expect(result.workflowData).toHaveLength(1);
+			expect(result.workflowData![0][0].json.repository).toBe('');
 		});
 	});
 });
