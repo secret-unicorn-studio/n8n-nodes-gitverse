@@ -1,4 +1,5 @@
 import * as pullRequest from './pullRequest.operations';
+import { GitverseApiError } from '../../../utils/api';
 import { createApi, createContext, repositoryLocator } from '../__testutils__/context';
 
 const BASE = '/repos/SUSTUDIO/n8n-nodes-gitverse';
@@ -302,7 +303,7 @@ describe('pull request operations', () => {
 			const ctx = createContext({
 				params: { repository: repositoryLocator, pullRequestNumber: 7 },
 			});
-			api.get.mockRejectedValue({ isAxiosError: true, response: { status: 404 } });
+			api.get.mockRejectedValue(new GitverseApiError(404, { message: 'Not found' }));
 
 			const result = await pullRequest.getPullRequestMergeStatus.call(ctx, api as any, 0);
 
@@ -313,14 +314,14 @@ describe('pull request operations', () => {
 			const ctx = createContext({
 				params: { repository: repositoryLocator, pullRequestNumber: 7 },
 			});
-			api.get.mockRejectedValue({ isAxiosError: true, response: { status: 500 } });
+			api.get.mockRejectedValue(new GitverseApiError(500, { message: 'boom' }));
 
 			await expect(
 				pullRequest.getPullRequestMergeStatus.call(ctx, api as any, 0)
-			).rejects.toEqual({ isAxiosError: true, response: { status: 500 } });
+			).rejects.toMatchObject({ status: 500 });
 		});
 
-		it('should rethrow non-axios failures', async () => {
+		it('should rethrow non-api failures', async () => {
 			const ctx = createContext({
 				params: { repository: repositoryLocator, pullRequestNumber: 7 },
 			});
@@ -331,15 +332,16 @@ describe('pull request operations', () => {
 			).rejects.toThrow('boom');
 		});
 
-		it('should rethrow axios failures without a response', async () => {
+		it('should rethrow failures without a Gitverse status', async () => {
 			const ctx = createContext({
 				params: { repository: repositoryLocator, pullRequestNumber: 7 },
 			});
-			api.get.mockRejectedValue({ isAxiosError: true });
+			const failure = Object.assign(new Error('network'), { response: { status: 404 } });
+			api.get.mockRejectedValue(failure);
 
 			await expect(
 				pullRequest.getPullRequestMergeStatus.call(ctx, api as any, 0)
-			).rejects.toEqual({ isAxiosError: true });
+			).rejects.toBe(failure);
 		});
 	});
 

@@ -279,16 +279,20 @@ describe('release operations', () => {
 			api.post.mockResolvedValue({ data: { id: 5 } });
 
 			const result = await release.uploadReleaseAsset.call(ctx, api as any, 0);
-			const [url, form] = api.post.mock.calls[0];
+			const [url, body, config] = api.post.mock.calls[0];
 
 			expect(url).toBe(`${BASE}/releases/12/assets`);
-			expect(form).toBeInstanceOf((globalThis as any).FormData);
-			expect((form as any).get('name')).toBe('bundle.zip');
+			expect(body).toBeInstanceOf(Buffer);
+			expect(config.headers['Content-Type']).toMatch(
+				/^multipart\/form-data; boundary=/
+			);
 
-			const file = (form as any).get('attachment');
+			const text = (body as Buffer).toString('utf8');
 
-			expect(file.name).toBe('upload.zip');
-			expect(file.type).toBe('application/zip');
+			expect(text).toContain('name="name"');
+			expect(text).toContain('bundle.zip');
+			expect(text).toContain('filename="upload.zip"');
+			expect(text).toContain('Content-Type: application/zip');
 			expect(result).toEqual({ id: 5 });
 		});
 
@@ -301,10 +305,10 @@ describe('release operations', () => {
 
 			await release.uploadReleaseAsset.call(ctx, api as any, 0);
 
-			const form = api.post.mock.calls[0][1];
+			const text = (api.post.mock.calls[0][1] as Buffer).toString('utf8');
 
-			expect((form as any).get('name')).toBe('upload.zip');
-			expect((form as any).get('attachment').name).toBe('upload.zip');
+			expect(text).toContain('name="name"');
+			expect(text).toContain('filename="upload.zip"');
 		});
 
 		it('should use the asset name when the file has no name', async () => {
@@ -320,9 +324,9 @@ describe('release operations', () => {
 
 			await release.uploadReleaseAsset.call(ctx, api as any, 0);
 
-			const form = api.post.mock.calls[0][1];
+			const body = api.post.mock.calls[0][1] as Buffer;
 
-			expect((form as any).get('attachment').name).toBe('bundle.zip');
+			expect(body.toString('utf8')).toContain('filename="bundle.zip"');
 		});
 
 		it('should require a name when the file has none', async () => {

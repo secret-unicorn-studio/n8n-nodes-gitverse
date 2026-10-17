@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import axios, { AxiosInstance } from 'axios';
+import { GitverseClient, isGitverseError } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import {
@@ -18,7 +18,7 @@ function pullRequestPath(owner: string, repo: string, number: number): string {
 
 export async function getPullRequest(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -36,7 +36,7 @@ export async function getPullRequest(
 
 export async function getManyPullRequests(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -64,7 +64,7 @@ export async function getManyPullRequests(
 
 export async function createPullRequest(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -96,7 +96,7 @@ export async function createPullRequest(
 
 export async function updatePullRequest(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -134,7 +134,7 @@ export async function updatePullRequest(
 
 export async function updatePullRequestBranch(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -155,7 +155,7 @@ export async function updatePullRequestBranch(
 
 export async function getPullRequestMergeStatus(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -172,7 +172,7 @@ export async function getPullRequestMergeStatus(
 		return { mergeable: true };
 	} catch (error) {
 		// The endpoint answers 204 when the pull request can be merged and 404 when it cannot.
-		if (axios.isAxiosError(error) && error.response?.status === 404) {
+		if (isGitverseError(error, 404)) {
 			return { mergeable: false };
 		}
 
@@ -182,7 +182,7 @@ export async function getPullRequestMergeStatus(
 
 export async function getPullRequestFiles(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -203,7 +203,7 @@ export async function getPullRequestFiles(
 
 export async function getPullRequestCommits(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -224,7 +224,7 @@ export async function getPullRequestCommits(
 
 export async function createPullRequestComment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -258,7 +258,7 @@ export async function createPullRequestComment(
 
 export async function getPullRequestReviews(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -280,7 +280,7 @@ export async function getPullRequestReviews(
 
 export async function createPullRequestReview(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -326,7 +326,7 @@ export async function createPullRequestReview(
 
 export async function submitPullRequestReview(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -363,7 +363,7 @@ export async function submitPullRequestReview(
 
 export async function deletePullRequestReview(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

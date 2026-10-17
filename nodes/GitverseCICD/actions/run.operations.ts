@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import {
@@ -14,7 +14,7 @@ function runsPath(owner: string, repo: string): string {
 
 export async function getRuns(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -25,7 +25,7 @@ export async function getRuns(
 
 export async function getRun(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -38,7 +38,7 @@ export async function getRun(
 
 export async function getRunJobs(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -54,7 +54,7 @@ export async function getRunJobs(
 
 export async function getRunByIndex(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -67,7 +67,7 @@ export async function getRunByIndex(
 
 export async function getRunJobsByIndex(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -83,7 +83,7 @@ export async function getRunJobsByIndex(
 
 export async function cancelRun(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -96,7 +96,7 @@ export async function cancelRun(
 
 export async function rerunRun(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

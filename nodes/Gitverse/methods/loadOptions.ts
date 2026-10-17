@@ -2,15 +2,15 @@ import {
 	ILoadOptionsFunctions,
 	INodeListSearchResult,
 } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { createApiClient, fetchPages, GitverseApiOptions } from '../../../utils/api';
 import { getRepositoryRef } from '../utils/params';
 
-async function getApiClient(ctx: ILoadOptionsFunctions): Promise<AxiosInstance> {
+async function getApiClient(ctx: ILoadOptionsFunctions): Promise<GitverseClient> {
 	const credentials = await ctx.getCredentials<GitverseApiOptions>('gitverseApi');
 
-	return createApiClient({
+	return createApiClient(ctx, {
 		baseUrl: credentials.baseUrl,
 		token: credentials.token,
 		retries: credentials.retries,

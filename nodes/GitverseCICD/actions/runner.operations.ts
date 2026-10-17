@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import { getPaginationOptions, getRequiredNumber } from '../../Gitverse/utils/params';
@@ -11,7 +11,7 @@ function base(ctx: IExecuteFunctions, itemIndex: number): string {
 
 export async function getRunners(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const pagination = getPaginationOptions(this, itemIndex);
@@ -21,7 +21,7 @@ export async function getRunners(
 
 export async function createRunnerRegistrationToken(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const response = await api.post(`${base(this, itemIndex)}/registration-token`);
@@ -31,7 +31,7 @@ export async function createRunnerRegistrationToken(
 
 export async function getRunner(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const runnerId = getRequiredNumber(this, itemIndex, 'runnerId', 'Runner ID is required');
@@ -43,7 +43,7 @@ export async function getRunner(
 
 export async function deleteRunner(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const runnerId = getRequiredNumber(this, itemIndex, 'runnerId', 'Runner ID is required');

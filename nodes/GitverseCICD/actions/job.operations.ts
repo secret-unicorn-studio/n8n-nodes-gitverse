@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { getRepositoryRef, getRequiredNumber } from '../../Gitverse/utils/params';
 
@@ -9,7 +9,7 @@ function jobsPath(owner: string, repo: string): string {
 
 export async function getJob(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -22,7 +22,7 @@ export async function getJob(
 
 export async function getJobLogs(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -36,7 +36,7 @@ export async function getJobLogs(
 
 export async function rerunJob(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

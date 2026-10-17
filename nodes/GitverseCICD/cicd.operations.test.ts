@@ -576,8 +576,7 @@ describe('CI/CD operations', () => {
 				status: 302,
 			});
 			expect(api.get).toHaveBeenCalledWith(`${BASE}/actions/artifacts/1/zip`, {
-				maxRedirects: 0,
-				validateStatus: expect.any(Function),
+				disableFollowRedirect: true,
 			});
 		});
 

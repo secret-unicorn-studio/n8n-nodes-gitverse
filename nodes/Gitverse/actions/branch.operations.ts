@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import {
@@ -11,7 +11,7 @@ import {
 
 export async function getBranch(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -29,7 +29,7 @@ export async function getBranch(
 
 export async function getManyBranches(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -44,7 +44,7 @@ export async function getManyBranches(
 
 export async function createBranch(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -72,7 +72,7 @@ export async function createBranch(
 
 export async function deleteBranch(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

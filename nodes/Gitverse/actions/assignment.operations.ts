@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { getRequiredNumber } from '../utils/params';
 
@@ -8,7 +8,7 @@ import { getRequiredNumber } from '../utils/params';
  */
 export async function getAssignment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const assignmentId = getRequiredNumber(

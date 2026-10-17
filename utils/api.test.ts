@@ -1,4 +1,3 @@
-import axios from 'axios';
 import {
 	GITVERSE_ACCEPT_HEADER,
 	createApiClient,
@@ -10,6 +9,9 @@ import {
 	parseLinkHeader,
 	getLastPage,
 	extractErrorMessage,
+	GitverseApiError,
+	isGitverseError,
+	buildMultipartBody,
 } from './api';
 
 describe('utils/api', () => {
@@ -61,437 +63,420 @@ describe('utils/api', () => {
 	});
 
 	describe('createApiClient', () => {
-		let mockAxiosInstance: any;
-		let createSpy: jest.SpyInstance;
+		let httpRequest: jest.Mock;
+		let context: { helpers: { httpRequest: jest.Mock } };
 
-		beforeEach(() => {
-			mockAxiosInstance = {
-				interceptors: {
-					response: {
-						use: jest.fn(),
-					},
-				},
-				request: jest.fn(),
-			};
-			createSpy = jest.spyOn(axios, 'create').mockReturnValue(mockAxiosInstance);
-		});
+		function response(status: number, body: unknown, headers: Record<string, any> = {}) {
+			return { statusCode: status, body, headers };
+		}
 
-		afterEach(() => {
-			jest.restoreAllMocks();
-		});
-
-		it('should normalize the baseUrl', () => {
-			createApiClient({
+		function client(options: Record<string, unknown> = {}) {
+			return createApiClient(context, {
 				baseUrl: 'https://gitverse.ru/api/v1/',
 				token: 'test-token',
+				retryDelayMs: () => 0,
+				...options,
 			});
+		}
 
-			expect(createSpy).toHaveBeenCalledWith(
-				expect.objectContaining({
-					baseURL: 'https://api.gitverse.ru',
-				})
+		beforeEach(() => {
+			httpRequest = jest.fn().mockResolvedValue(response(200, { ok: true }));
+			context = { helpers: { httpRequest } };
+		});
+
+		it('should normalize the base URL and join it with the path', async () => {
+			await client().get('/repos/o/r');
+
+			expect(httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({ url: 'https://api.gitverse.ru/repos/o/r', method: 'GET' })
 			);
 		});
 
-		it('should set the Bearer authorization header', () => {
-			createApiClient({
-				baseUrl: 'https://api.gitverse.ru',
-				token: 'my-secret-token',
-			});
+		it('should keep a self-hosted base URL', async () => {
+			await client({ baseUrl: 'https://git.example.com/api/v1' }).get('/user');
 
-			expect(createSpy).toHaveBeenCalledWith(
-				expect.objectContaining({
-					headers: expect.objectContaining({
-						Authorization: 'Bearer my-secret-token',
-					}),
-				})
+			expect(httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({ url: 'https://git.example.com/api/v1/user' })
 			);
 		});
 
-		it('should set the versioned Accept header', () => {
-			createApiClient({
-				baseUrl: 'https://api.gitverse.ru',
-				token: 'test-token',
-			});
+		it('should send the bearer token and the versioned accept header', async () => {
+			await client().get('/user');
 
-			expect(createSpy).toHaveBeenCalledWith(
+			expect(httpRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
 					headers: expect.objectContaining({
+						Authorization: 'Bearer test-token',
 						Accept: GITVERSE_ACCEPT_HEADER,
 					}),
 				})
 			);
 		});
 
-		it('should default the timeout to 30000ms', () => {
-			createApiClient({
-				baseUrl: 'https://api.gitverse.ru',
-				token: 'test-token',
+		it('should default the timeout to 30000ms and accept a custom one', async () => {
+			await client().get('/user');
+			expect(httpRequest).toHaveBeenCalledWith(expect.objectContaining({ timeout: 30000 }));
+
+			await client({ timeout: 5000 }).get('/user');
+			expect(httpRequest).toHaveBeenLastCalledWith(
+				expect.objectContaining({ timeout: 5000 })
+			);
+		});
+
+		it('should return the body, the status and lower-cased headers', async () => {
+			httpRequest.mockResolvedValue(
+				response(201, { id: 1 }, { 'Link': 'x', 'Content-Type': 'application/json' })
+			);
+
+			const result = await client().post('/repos', { name: 'one' });
+
+			expect(result).toEqual({
+				data: { id: 1 },
+				status: 201,
+				headers: { link: 'x', 'content-type': 'application/json' },
+			});
+		});
+
+		it('should tolerate a response without headers or status', async () => {
+			httpRequest.mockResolvedValue({ body: [] });
+
+			expect(await client().get('/repos')).toEqual({ data: [], status: 200, headers: {} });
+		});
+
+		it('should send query parameters', async () => {
+			await client().get('/repos', { params: { page: 2, per_page: 10 } });
+
+			expect(httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({ qs: { page: 2, per_page: 10 } })
+			);
+		});
+
+		it('should merge extra headers over the defaults', async () => {
+			await client().post('/x', Buffer.from('body'), {
+				headers: { 'Content-Type': 'multipart/form-data; boundary=abc' },
 			});
 
-			expect(createSpy).toHaveBeenCalledWith(
+			expect(httpRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
-					timeout: 30000,
+					headers: expect.objectContaining({
+						Authorization: 'Bearer test-token',
+						'Content-Type': 'multipart/form-data; boundary=abc',
+					}),
 				})
 			);
 		});
 
-		it('should accept a custom timeout', () => {
-			createApiClient({
-				baseUrl: 'https://api.gitverse.ru',
-				token: 'test-token',
-				timeout: 5000,
-			});
+		it('should pass the body of every write method', async () => {
+			const api = client();
 
-			expect(createSpy).toHaveBeenCalledWith(
+			await api.post('/a', { one: 1 });
+			expect(httpRequest).toHaveBeenLastCalledWith(
+				expect.objectContaining({ method: 'POST', body: { one: 1 } })
+			);
+
+			await api.put('/b', { two: 2 });
+			expect(httpRequest).toHaveBeenLastCalledWith(
+				expect.objectContaining({ method: 'PUT', body: { two: 2 } })
+			);
+
+			await api.patch('/c', { three: 3 });
+			expect(httpRequest).toHaveBeenLastCalledWith(
+				expect.objectContaining({ method: 'PATCH', body: { three: 3 } })
+			);
+
+			await api.delete('/d', { data: { four: 4 } });
+			expect(httpRequest).toHaveBeenLastCalledWith(
+				expect.objectContaining({ method: 'DELETE', body: { four: 4 } })
+			);
+
+			await api.delete('/e');
+			expect(httpRequest).toHaveBeenLastCalledWith(
+				expect.objectContaining({ method: 'DELETE', body: undefined })
+			);
+		});
+
+		it('should send GET requests without a body', async () => {
+			await client().get('/user');
+
+			expect(httpRequest).toHaveBeenCalledWith(expect.objectContaining({ body: undefined }));
+		});
+
+		it('should forward the redirect and encoding options', async () => {
+			await client().get('/zip', { disableFollowRedirect: true, encoding: 'arraybuffer' });
+
+			expect(httpRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
-					timeout: 5000,
+					disableFollowRedirect: true,
+					encoding: 'arraybuffer',
 				})
 			);
 		});
 
-		it('should return the axios instance', () => {
-			const client = createApiClient({
-				baseUrl: 'https://api.gitverse.ru',
-				token: 'test-token',
-			});
+		it('should always ask for the full response and handle the status itself', async () => {
+			await client().get('/user');
 
-			expect(client).toBe(mockAxiosInstance);
-		});
-
-		it('should register a response error interceptor', () => {
-			createApiClient({
-				baseUrl: 'https://api.gitverse.ru',
-				token: 'test-token',
-			});
-
-			expect(mockAxiosInstance.interceptors.response.use).toHaveBeenCalledWith(
-				expect.any(Function),
-				expect.any(Function)
+			expect(httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					returnFullResponse: true,
+					ignoreHttpStatusErrors: true,
+				})
 			);
 		});
 
-		it('should pass successful responses through untouched', () => {
-			createApiClient({
-				baseUrl: 'https://api.gitverse.ru',
-				token: 'test-token',
-			});
-			const useMock = mockAxiosInstance.interceptors.response.use as jest.Mock;
-			const successHandler = useMock.mock.calls[0][0];
-			const response = { status: 200, data: { ok: true } };
+		it('should expose a request method', async () => {
+			await client().request({ method: 'POST', url: '/x', data: { a: 1 }, params: { b: 2 } });
 
-			expect(successHandler(response)).toBe(response);
+			expect(httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: 'POST',
+					url: 'https://api.gitverse.ru/x',
+					body: { a: 1 },
+					qs: { b: 2 },
+				})
+			);
 		});
 
-		describe('error interceptor', () => {
-			let errorHandler: (error: any) => Promise<any>;
-
-			function setup(options: Record<string, unknown> = {}) {
-				createApiClient({
-					baseUrl: 'https://api.gitverse.ru',
-					token: 'test-token',
-					retryDelayMs: () => 0,
-					...options,
-				});
-				const useMock = mockAxiosInstance.interceptors.response.use as jest.Mock;
-				errorHandler = useMock.mock.calls[useMock.mock.calls.length - 1][1];
-			}
-
-			beforeEach(() => {
-				setup();
-			});
-
-			it('should prefix plain string error payloads', async () => {
-				const error: any = {
-					response: { status: 404, data: 'not found' },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 404] not found');
-			});
-
-			it('should prefer the message field', async () => {
-				const error: any = {
-					response: { status: 401, data: { message: 'Unauthorized' } },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 401] Unauthorized');
-			});
-
-			it('should fall back to the error field', async () => {
-				const error: any = {
-					response: { status: 422, data: { error: 'Validation failed' } },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 422] Validation failed');
-			});
-
-			it('should stringify unknown payload shapes', async () => {
-				const error: any = {
-					response: { status: 500, data: { detail: 'boom' } },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 500] {"detail":"boom"}');
-			});
-
-			it('should unwrap the nested Gitverse error object', async () => {
-				const error: any = {
-					response: {
-						status: 404,
-						data: {
-							error: {
-								code: 'NOT_FOUND',
-								message: 'Not found',
-								documentation_url: 'https://gitverse.ru/docs/developers/public-api',
-								status: 404,
-							},
-						},
-					},
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 404] NOT_FOUND: Not found');
-			});
-
-			it('should use the nested error message without a code', async () => {
-				const error: any = {
-					response: { status: 404, data: { error: { message: 'Not found' } } },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 404] Not found');
-			});
-
-			it('should fall back to a flat message when the nested error is empty', async () => {
-				const error: any = {
-					response: { status: 422, data: { error: {}, message: 'flat' } },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 422] flat');
-			});
-
-			it('should stringify a nested error without a message', async () => {
-				const error: any = {
-					response: { status: 422, data: { error: { code: 'X' } } },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 422] {"error":{"code":"X"}}');
-			});
-
-			it('should stringify primitive payloads', async () => {
-				const error: any = {
-					response: { status: 500, data: 42 },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('[Gitverse 500] 42');
-			});
-
-			it('should keep the original message for whitespace-only payloads', async () => {
-				const error: any = {
-					response: { status: 500, data: '   ' },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('Request failed');
-			});
-
-			it('should keep the original message when there is no payload', async () => {
-				const error: any = { message: 'Network Error' };
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('Network Error');
-			});
-
-			it('should keep the original message for empty payloads', async () => {
-				const error: any = {
-					response: { status: 502, data: '' },
-					message: 'Request failed',
-				};
-
-				await expect(errorHandler(error)).rejects.toBe(error);
-				expect(error.message).toBe('Request failed');
-			});
-
-			it('should retry retryable statuses and resolve', async () => {
-				const config: any = { url: '/repos/owner/repo' };
-				mockAxiosInstance.request.mockResolvedValue({ data: { ok: true } });
-
-				const result = await errorHandler({
-					config,
-					response: { status: 503, headers: {} },
-				});
-
-				expect(mockAxiosInstance.request).toHaveBeenCalledWith(config);
-				expect(config.__gitverseAttempt).toBe(1);
-				expect(result).toEqual({ data: { ok: true } });
-			});
-
-			it('should retry 429 responses', async () => {
-				const config: any = { url: '/user/repos' };
-				mockAxiosInstance.request.mockResolvedValue({ data: [] });
-
-				await errorHandler({
-					config,
-					response: { status: 429, headers: {} },
-				});
-
-				expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1);
-			});
-
-			it('should stop retrying once the attempt budget is used up', async () => {
-				const config: any = { url: '/repos', __gitverseAttempt: 3 };
-
-				await expect(
-					errorHandler({
-						config,
-						response: { status: 500, headers: {}, data: { message: 'boom' } },
+		describe('errors', () => {
+			it('should throw a GitverseApiError for a failed request', async () => {
+				httpRequest.mockResolvedValue(
+					response(404, {
+						error: { code: 'NOT_FOUND', message: 'Not found', status: 404 },
 					})
-				).rejects.toMatchObject({ message: '[Gitverse 500] boom' });
+				);
 
-				expect(mockAxiosInstance.request).not.toHaveBeenCalled();
+				await expect(client().get('/repos/o/r')).rejects.toMatchObject({
+					name: 'GitverseApiError',
+					status: 404,
+					message: '[Gitverse 404] NOT_FOUND: Not found',
+				});
 			});
 
-			it('should not retry non-retryable statuses', async () => {
-				const config: any = { url: '/repos' };
+			it('should carry the body, the headers and the axios-like response', async () => {
+				const body = { error: { code: 'X', message: 'y' } };
 
-				await expect(
-					errorHandler({
-						config,
-						response: { status: 404, headers: {}, data: { message: 'nope' } },
-					})
-				).rejects.toMatchObject({ message: '[Gitverse 404] nope' });
+				httpRequest.mockResolvedValue(response(422, body, { 'X-Trace': '1' }));
 
-				expect(mockAxiosInstance.request).not.toHaveBeenCalled();
+				try {
+					await client().get('/x');
+					throw new Error('should have thrown');
+				} catch (error) {
+					expect(error).toBeInstanceOf(GitverseApiError);
+					const apiError = error as GitverseApiError;
+
+					expect(apiError.body).toEqual(body);
+					expect(apiError.headers).toEqual({ 'x-trace': '1' });
+					expect(apiError.response).toEqual({
+						status: 422,
+						data: body,
+						headers: { 'x-trace': '1' },
+					});
+				}
+			});
+
+			it('should describe an error without a payload', async () => {
+				httpRequest.mockResolvedValue({ statusCode: 500, body: '', headers: {} });
+
+				await expect(client().get('/x')).rejects.toThrow('[Gitverse 500] Request failed');
+			});
+
+			it('should not retry a non-retryable status', async () => {
+				httpRequest.mockResolvedValue(response(404, { message: 'nope' }));
+
+				await expect(client().get('/x')).rejects.toThrow('[Gitverse 404] nope');
+				expect(httpRequest).toHaveBeenCalledTimes(1);
 			});
 
 			it('should not retry when retries are disabled', async () => {
-				setup({ retries: 0 });
-				const config: any = { url: '/repos' };
+				httpRequest.mockResolvedValue(response(503, { message: 'down' }));
 
-				await expect(
-					errorHandler({
-						config,
-						response: { status: 500, headers: {}, data: { message: 'boom' } },
-					})
-				).rejects.toMatchObject({ message: '[Gitverse 500] boom' });
-
-				expect(mockAxiosInstance.request).not.toHaveBeenCalled();
+				await expect(client({ retries: 0 }).get('/x')).rejects.toThrow('[Gitverse 503] down');
+				expect(httpRequest).toHaveBeenCalledTimes(1);
 			});
 
-			it('should not retry when the request config is missing', async () => {
-				await expect(
-					errorHandler({ response: { status: 503, headers: {}, data: 'down' } })
-				).rejects.toMatchObject({ message: '[Gitverse 503] down' });
+			it('should retry a retryable status until it succeeds', async () => {
+				httpRequest
+					.mockResolvedValueOnce(response(503, 'down'))
+					.mockResolvedValueOnce(response(429, 'slow'))
+					.mockResolvedValueOnce(response(200, { ok: true }));
+
+				await expect(client().get('/x')).resolves.toMatchObject({ data: { ok: true } });
+				expect(httpRequest).toHaveBeenCalledTimes(3);
 			});
 
-			it('should retry when the response carries no headers', async () => {
-				const config: any = { url: '/repos' };
-				mockAxiosInstance.request.mockResolvedValue({ data: [] });
+			it('should give up once the retry budget is used up', async () => {
+				httpRequest.mockResolvedValue(response(500, { message: 'boom' }));
 
-				await errorHandler({ config, response: { status: 503 } });
-
-				expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1);
+				await expect(client({ retries: 2 }).get('/x')).rejects.toThrow(
+					'[Gitverse 500] boom'
+				);
+				expect(httpRequest).toHaveBeenCalledTimes(3);
 			});
 
-			it('should honor the Retry-After header', async () => {
+			it('should retry every server error status', async () => {
+				for (const status of [429, 500, 502, 503, 504]) {
+					httpRequest.mockClear();
+					httpRequest
+						.mockResolvedValueOnce(response(status, 'x'))
+						.mockResolvedValueOnce(response(200, 'ok'));
+
+					await expect(client().get('/x')).resolves.toMatchObject({ data: 'ok' });
+				}
+			});
+
+			it('should honor the Retry-After header in seconds', async () => {
 				const delaySpy = jest.fn().mockReturnValue(0);
-				setup({ retryDelayMs: delaySpy });
-				const config: any = { url: '/repos' };
-				mockAxiosInstance.request.mockResolvedValue({ data: [] });
 
-				await errorHandler({
-					config,
-					response: { status: 429, headers: { 'retry-after': '7' } },
-				});
+				httpRequest
+					.mockResolvedValueOnce(response(429, 'x', { 'Retry-After': '7' }))
+					.mockResolvedValueOnce(response(200, 'ok'));
+
+				await client({ retryDelayMs: delaySpy }).get('/x');
 
 				expect(delaySpy).toHaveBeenCalledWith(1, 7000);
 			});
 
 			it('should parse an HTTP-date Retry-After header', async () => {
 				const delaySpy = jest.fn().mockReturnValue(0);
-				setup({ retryDelayMs: delaySpy });
-				const config: any = { url: '/repos' };
-				mockAxiosInstance.request.mockResolvedValue({ data: [] });
 				const future = new Date(Date.now() + 5000).toUTCString();
 
-				await errorHandler({
-					config,
-					response: { status: 429, headers: { 'retry-after': future } },
-				});
+				httpRequest
+					.mockResolvedValueOnce(response(429, 'x', { 'retry-after': future }))
+					.mockResolvedValueOnce(response(200, 'ok'));
+
+				await client({ retryDelayMs: delaySpy }).get('/x');
 
 				expect(delaySpy).toHaveBeenCalledTimes(1);
 				expect(delaySpy.mock.calls[0][1]).toBeGreaterThan(0);
 			});
 
-			it('should ignore an unparsable Retry-After header', async () => {
+			it('should pass null for an unparsable Retry-After header', async () => {
 				const delaySpy = jest.fn().mockReturnValue(0);
-				setup({ retryDelayMs: delaySpy });
-				const config: any = { url: '/repos' };
-				mockAxiosInstance.request.mockResolvedValue({ data: [] });
 
-				await errorHandler({
-					config,
-					response: { status: 429, headers: { 'retry-after': 'later' } },
-				});
+				httpRequest
+					.mockResolvedValueOnce(response(429, 'x', { 'retry-after': 'later' }))
+					.mockResolvedValueOnce(response(200, 'ok'));
+
+				await client({ retryDelayMs: delaySpy }).get('/x');
 
 				expect(delaySpy).toHaveBeenCalledWith(1, null);
 			});
 
 			it('should use exponential backoff by default', async () => {
-				createApiClient({
-					baseUrl: 'https://api.gitverse.ru',
-					token: 'test-token',
-				});
-				const useMock = mockAxiosInstance.interceptors.response.use as jest.Mock;
-				const handler = useMock.mock.calls[useMock.mock.calls.length - 1][1];
-				const config: any = { url: '/repos', __gitverseAttempt: 1 };
-				mockAxiosInstance.request.mockResolvedValue({ data: [] });
+				httpRequest
+					.mockResolvedValueOnce(response(503, 'x'))
+					.mockResolvedValueOnce(response(200, 'ok'));
 
 				jest.useFakeTimers();
-				const pending = handler({
-					config,
-					response: { status: 503, headers: {} },
-				});
-				await jest.advanceTimersByTimeAsync(2000);
-				await expect(pending).resolves.toEqual({ data: [] });
-				jest.useRealTimers();
-			});
 
-			it('should wait at least as long as the Retry-After header asks', async () => {
-				createApiClient({
-					baseUrl: 'https://api.gitverse.ru',
-					token: 'test-token',
-				});
-				const useMock = mockAxiosInstance.interceptors.response.use as jest.Mock;
-				const handler = useMock.mock.calls[useMock.mock.calls.length - 1][1];
-				const config: any = { url: '/repos' };
-				mockAxiosInstance.request.mockResolvedValue({ data: [] });
+				try {
+					const pending = client({ retryDelayMs: undefined }).get('/x');
 
-				jest.useFakeTimers();
-				const pending = handler({
-					config,
-					response: { status: 429, headers: { 'retry-after': '5' } },
-				});
-				await jest.advanceTimersByTimeAsync(5000);
-				await expect(pending).resolves.toEqual({ data: [] });
-				jest.useRealTimers();
+					await jest.advanceTimersByTimeAsync(2000);
+					await expect(pending).resolves.toMatchObject({ data: 'ok' });
+				} finally {
+					jest.useRealTimers();
+				}
 			});
+		});
+	});
+
+	describe('buildMultipartBody', () => {
+		it('should build a single file part with a deterministic boundary', () => {
+			const { body, contentType } = buildMultipartBody(
+				[
+					{
+						name: 'attachment',
+						value: Buffer.from('payload'),
+						fileName: 'error.log',
+						contentType: 'text/plain',
+					},
+				],
+				'BOUNDARY'
+			);
+
+			expect(contentType).toBe('multipart/form-data; boundary=BOUNDARY');
+			expect(body.toString('utf8')).toBe(
+				[
+					'--BOUNDARY',
+					'Content-Disposition: form-data; name="attachment"; filename="error.log"',
+					'Content-Type: text/plain',
+					'',
+					'payload',
+					'--BOUNDARY--',
+					'',
+				].join('\r\n')
+			);
+		});
+
+		it('should build a plain field before the file', () => {
+			const { body } = buildMultipartBody(
+				[
+					{ name: 'name', value: 'asset.zip' },
+					{ name: 'attachment', value: Buffer.from('zip'), fileName: 'a.zip' },
+				],
+				'BOUNDARY'
+			);
+			const text = body.toString('utf8');
+
+			expect(text).toContain('Content-Disposition: form-data; name="name"\r\n\r\nasset.zip');
+			expect(text).toContain('filename="a.zip"');
+			expect(text).toContain('Content-Type: application/octet-stream');
+		});
+
+		it('should keep binary content untouched', () => {
+			const payload = Buffer.from([0x00, 0x01, 0xff, 0xfe]);
+			const { body } = buildMultipartBody(
+				[{ name: 'attachment', value: payload, fileName: 'blob.bin' }],
+				'BOUNDARY'
+			);
+
+			expect(body.includes(payload)).toBe(true);
+		});
+
+		it('should generate a random boundary by default', () => {
+			const first = buildMultipartBody([{ name: 'a', value: 'b' }]);
+			const second = buildMultipartBody([{ name: 'a', value: 'b' }]);
+
+			expect(first.contentType).toMatch(/^multipart\/form-data; boundary=----n8nGitverse[0-9a-f]{32}$/);
+			expect(first.contentType).not.toBe(second.contentType);
+		});
+
+		it('should neutralize quotes and line breaks in names', () => {
+			const { body } = buildMultipartBody(
+				[{ name: 'a"b', value: 'x', fileName: 'e\r\nvil.txt' }],
+				'BOUNDARY'
+			);
+			const text = body.toString('utf8');
+
+			expect(text).toContain('name="a%22b"');
+			expect(text).toContain('filename="e vil.txt"');
+		});
+
+		it('should keep an explicit content type of a plain field', () => {
+			const { body } = buildMultipartBody(
+				[{ name: 'meta', value: '{}', contentType: 'application/json' }],
+				'BOUNDARY'
+			);
+			const text = body.toString('utf8');
+
+			expect(text).toContain('Content-Disposition: form-data; name="meta"');
+			expect(text).toContain('Content-Type: application/json\r\n\r\n{}');
+		});
+	});
+
+	describe('isGitverseError', () => {
+		it('should recognize a Gitverse error and its status', () => {
+			const error = new GitverseApiError(404, { message: 'nope' });
+
+			expect(isGitverseError(error)).toBe(true);
+			expect(isGitverseError(error, 404)).toBe(true);
+			expect(isGitverseError(error, 500)).toBe(false);
+		});
+
+		it('should reject other errors', () => {
+			expect(isGitverseError(new Error('boom'))).toBe(false);
+			expect(isGitverseError({ response: { status: 404 } })).toBe(false);
+			expect(isGitverseError(undefined)).toBe(false);
 		});
 	});
 
@@ -522,6 +507,15 @@ describe('utils/api', () => {
 
 		it('should stringify payloads it cannot interpret', () => {
 			expect(extractErrorMessage({ detail: 'boom' })).toBe('{"detail":"boom"}');
+		});
+
+		it('should stringify primitive payloads', () => {
+			expect(extractErrorMessage(42)).toBe('42');
+			expect(extractErrorMessage(true)).toBe('true');
+		});
+
+		it('should read a nested error that is a plain string', () => {
+			expect(extractErrorMessage({ error: 'Validation failed' })).toBe('Validation failed');
 		});
 	});
 

@@ -3,7 +3,7 @@ import {
 	INodeExecutionData,
 	NodeOperationError,
 } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../utils/api';
 
 import { createApiClient, GitverseApiOptions } from '../../utils/api';
 import { toJsonRecord } from '../Gitverse/utils/params';
@@ -17,7 +17,7 @@ import * as workflow from './actions/workflow.operations';
 
 export type OperationFunction = (
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ) => Promise<unknown>;
 
@@ -80,7 +80,7 @@ export async function execute(this: IExecuteFunctions): Promise<INodeExecutionDa
 	const operation = this.getNodeParameter('operation', 0) as string;
 	const credentials = await this.getCredentials<GitverseApiOptions>('gitverseApi');
 
-	const api = createApiClient({
+	const api = createApiClient(this, {
 		baseUrl: credentials.baseUrl,
 		token: credentials.token,
 		retries: credentials.retries,

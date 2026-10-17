@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import {
@@ -20,7 +20,7 @@ function readOrganization(ctx: IExecuteFunctions, itemIndex: number): string {
 
 export async function getOrgTeams(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const organization = readOrganization(this, itemIndex);
@@ -31,7 +31,7 @@ export async function getOrgTeams(
 
 export async function createOrgTeam(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const organization = readOrganization(this, itemIndex);
@@ -75,7 +75,7 @@ export async function createOrgTeam(
 
 export async function getTeamMembers(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const organization = readOrganization(this, itemIndex);
@@ -91,7 +91,7 @@ export async function getTeamMembers(
 
 export async function getOrgMember(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const organization = readOrganization(this, itemIndex);
@@ -106,7 +106,7 @@ export async function getOrgMember(
 
 export async function getTeamRepos(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const organization = readOrganization(this, itemIndex);
@@ -122,7 +122,7 @@ export async function getTeamRepos(
 
 export async function setTeamRepo(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const organization = readOrganization(this, itemIndex);
@@ -140,7 +140,7 @@ export async function setTeamRepo(
 
 export async function getOrgIssueTypes(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const organization = readOrganization(this, itemIndex);

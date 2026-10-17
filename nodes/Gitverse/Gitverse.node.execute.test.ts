@@ -30,7 +30,7 @@ describe('Gitverse.node.execute', () => {
 
 		await execute.call(ctx);
 
-		expect(mockCreateApiClient).toHaveBeenCalledWith({
+		expect(mockCreateApiClient).toHaveBeenCalledWith(ctx, {
 			baseUrl: 'https://api.gitverse.ru',
 			token: 'secret-token',
 			retries: undefined,

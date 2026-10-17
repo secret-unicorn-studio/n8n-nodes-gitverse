@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import {
 	getOptionalString,
@@ -28,7 +28,7 @@ function normalizeColor(color: string): string {
 
 export async function getManyProjects(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -40,7 +40,7 @@ export async function getManyProjects(
 
 export async function getProject(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -53,7 +53,7 @@ export async function getProject(
 
 export async function createProject(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -81,7 +81,7 @@ export async function createProject(
 
 export async function updateProject(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -105,7 +105,7 @@ export async function updateProject(
 
 export async function deleteProject(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -118,7 +118,7 @@ export async function deleteProject(
 
 export async function createProjectColumn(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -139,7 +139,7 @@ export async function createProjectColumn(
 
 export async function updateProjectColumn(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -164,7 +164,7 @@ export async function updateProjectColumn(
 
 export async function deleteProjectColumn(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

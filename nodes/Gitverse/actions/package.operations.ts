@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { getRequiredNumber, getRequiredString } from '../utils/params';
 
@@ -41,7 +41,7 @@ function packagePath(scope: PackageScope): string {
 
 export async function getPackageVersions(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const scope = readScope(this, itemIndex);
@@ -53,7 +53,7 @@ export async function getPackageVersions(
 
 export async function deletePackageVersion(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const scope = readScope(this, itemIndex);
@@ -71,7 +71,7 @@ export async function deletePackageVersion(
 
 export async function deletePackage(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const scope = readScope(this, itemIndex);

@@ -1,5 +1,5 @@
 import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { encodeContent } from '../../../utils/api';
 import {
@@ -11,7 +11,7 @@ import {
 
 export async function getFile(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any> | Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -29,7 +29,7 @@ export async function getFile(
 
 export async function createOrUpdateFile(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -73,7 +73,7 @@ export async function createOrUpdateFile(
 
 export async function deleteFile(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

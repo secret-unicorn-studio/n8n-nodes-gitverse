@@ -1,8 +1,6 @@
-import axios, {
-	AxiosInstance,
-	AxiosRequestConfig,
-	AxiosResponse,
-} from 'axios';
+import { randomBytes } from 'node:crypto';
+
+import { IDataObject, IHttpRequestMethods, IHttpRequestOptions } from 'n8n-workflow';
 
 /** Media type required by the Gitverse public API. Requests without it fail with HTTP 415. */
 export const GITVERSE_ACCEPT_HEADER =
@@ -41,6 +39,48 @@ export interface GitverseApiOptions {
 	retryDelayMs?: (attempt: number, retryAfterMs: number | null) => number;
 }
 
+/** A Gitverse response, shaped like the axios parts the operations rely on. */
+export interface HttpResponse<T = any> {
+	data: T;
+	status: number;
+	headers: Record<string, any>;
+}
+
+export interface RequestConfig {
+	/** Query parameters. */
+	params?: Record<string, unknown>;
+	/** Additional headers, merged over the defaults. */
+	headers?: Record<string, string>;
+	/** Body of a `DELETE`, which axios used to take from the config. */
+	data?: unknown;
+	/** Keep the redirect response instead of following it (artifact downloads). */
+	disableFollowRedirect?: boolean;
+	encoding?: IHttpRequestOptions['encoding'];
+	timeout?: number;
+}
+
+/**
+ * The HTTP surface the operations use. It is implemented on top of the n8n request
+ * helpers, so no HTTP library is bundled with the package.
+ */
+export interface GitverseClient {
+	request<T = any>(
+		config: RequestConfig & { method: IHttpRequestMethods; url: string }
+	): Promise<HttpResponse<T>>;
+	get<T = any>(url: string, config?: RequestConfig): Promise<HttpResponse<T>>;
+	post<T = any>(url: string, body?: unknown, config?: RequestConfig): Promise<HttpResponse<T>>;
+	put<T = any>(url: string, body?: unknown, config?: RequestConfig): Promise<HttpResponse<T>>;
+	patch<T = any>(url: string, body?: unknown, config?: RequestConfig): Promise<HttpResponse<T>>;
+	delete<T = any>(url: string, config?: RequestConfig): Promise<HttpResponse<T>>;
+}
+
+/** Anything that can perform a request through the n8n helpers. */
+export interface HttpRequestContext {
+	helpers: {
+		httpRequest: (options: IHttpRequestOptions) => Promise<any>;
+	};
+}
+
 export interface FetchPagesOptions {
 	/** Follow every page until the last one. */
 	returnAll?: boolean;
@@ -52,11 +92,51 @@ export interface FetchPagesOptions {
 	/** Query parameter carrying the page size (defaults to `per_page`). */
 	perPageParam?: string;
 	params?: Record<string, unknown>;
-	config?: AxiosRequestConfig;
+	config?: RequestConfig;
 }
 
-interface RetryableRequestConfig extends AxiosRequestConfig {
-	__gitverseAttempt?: number;
+export interface MultipartPart {
+	name: string;
+	value: string | Buffer;
+	fileName?: string;
+	contentType?: string;
+}
+
+export interface MultipartBody {
+	body: Buffer;
+	contentType: string;
+}
+
+/**
+ * Error thrown for any non-2xx Gitverse response.
+ *
+ * `response` mirrors the axios error shape the operations and the scripts read.
+ */
+export class GitverseApiError extends Error {
+	readonly status: number;
+
+	readonly body: unknown;
+
+	readonly headers: Record<string, any>;
+
+	readonly response: { status: number; data: unknown; headers: Record<string, any> };
+
+	constructor(status: number, body: unknown, headers: Record<string, any> = {}) {
+		const detail = extractErrorMessage(body) ?? 'Request failed';
+
+		super(`[Gitverse ${status}] ${detail}`);
+
+		this.name = 'GitverseApiError';
+		this.status = status;
+		this.body = body;
+		this.headers = headers;
+		this.response = { status, data: body, headers };
+	}
+}
+
+/** Whether the error is a Gitverse response error, optionally with a given status. */
+export function isGitverseError(error: unknown, status?: number): error is GitverseApiError {
+	return error instanceof GitverseApiError && (status === undefined || error.status === status);
 }
 
 /**
@@ -97,6 +177,18 @@ function clampPerPage(perPage?: number): number {
 
 function toItemArray<T>(data: unknown): T[] {
 	return Array.isArray(data) ? (data as T[]) : [];
+}
+
+function normalizeHeaders(headers: unknown): Record<string, any> {
+	const result: Record<string, any> = {};
+
+	if (headers && typeof headers === 'object') {
+		for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
+			result[key.toLowerCase()] = value;
+		}
+	}
+
+	return result;
 }
 
 /**
@@ -165,8 +257,8 @@ function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isRetryableStatus(status?: number): boolean {
-	return status !== undefined && RETRYABLE_STATUSES.includes(status);
+function isRetryableStatus(status: number): boolean {
+	return RETRYABLE_STATUSES.includes(status);
 }
 
 /**
@@ -216,60 +308,129 @@ export function extractErrorMessage(data: unknown): string | null {
 	return JSON.stringify(data);
 }
 
+/* ------------------------------------------------------------------ */
+/* Multipart                                                           */
+/* ------------------------------------------------------------------ */
+
+function escapeHeaderValue(value: string): string {
+	return value.replace(/[\r\n]+/g, ' ').replace(/"/g, '%22');
+}
+
 /**
- * Create a configured Axios instance for the Gitverse API.
+ * Build a `multipart/form-data` body by hand.
+ *
+ * n8n's request helper drops a `FormData` instance before handing the request to
+ * its HTTP client, so the payload is assembled here instead. The result has to be
+ * sent with the returned content type.
  */
-export function createApiClient(options: GitverseApiOptions): AxiosInstance {
+export function buildMultipartBody(parts: MultipartPart[], boundary?: string): MultipartBody {
+	const usedBoundary = boundary ?? `----n8nGitverse${randomBytes(16).toString('hex')}`;
+	const chunks: Buffer[] = [];
+
+	for (const part of parts) {
+		const disposition = [`form-data; name="${escapeHeaderValue(part.name)}"`];
+
+		if (part.fileName !== undefined) {
+			disposition.push(`filename="${escapeHeaderValue(part.fileName)}"`);
+		}
+
+		const lines = [`--${usedBoundary}`, `Content-Disposition: ${disposition.join('; ')}`];
+
+		if (part.fileName !== undefined) {
+			lines.push(`Content-Type: ${part.contentType ?? 'application/octet-stream'}`);
+		} else if (part.contentType) {
+			lines.push(`Content-Type: ${part.contentType}`);
+		}
+
+		chunks.push(Buffer.from(`${lines.join('\r\n')}\r\n\r\n`, 'utf8'));
+		chunks.push(Buffer.isBuffer(part.value) ? part.value : Buffer.from(part.value, 'utf8'));
+		chunks.push(Buffer.from('\r\n', 'utf8'));
+	}
+
+	chunks.push(Buffer.from(`--${usedBoundary}--\r\n`, 'utf8'));
+
+	return {
+		body: Buffer.concat(chunks),
+		contentType: `multipart/form-data; boundary=${usedBoundary}`,
+	};
+}
+
+/* ------------------------------------------------------------------ */
+/* Client                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Create a Gitverse client on top of the n8n request helpers.
+ *
+ * Requests carry the Gitverse accept media type and the bearer token, retry
+ * `429` / `5xx` responses with a backoff that honours `Retry-After`, and fail with
+ * a {@link GitverseApiError} that carries the parsed payload.
+ */
+export function createApiClient(
+	context: HttpRequestContext,
+	options: GitverseApiOptions
+): GitverseClient {
+	const baseUrl = normalizeBaseUrl(options.baseUrl);
 	const retries = options.retries ?? DEFAULT_RETRIES;
 	const retryDelay = options.retryDelayMs ?? defaultRetryDelay;
+	const timeout = options.timeout ?? 30000;
 
-	const client = axios.create({
-		baseURL: normalizeBaseUrl(options.baseUrl),
-		headers: {
-			Authorization: `Bearer ${options.token}`,
-			Accept: GITVERSE_ACCEPT_HEADER,
-		},
-		timeout: options.timeout ?? 30000,
-	});
+	async function send<T>(
+		method: IHttpRequestMethods,
+		url: string,
+		body: unknown,
+		config: RequestConfig = {}
+	): Promise<HttpResponse<T>> {
+		const requestOptions: IHttpRequestOptions = {
+			url: `${baseUrl}${url}`,
+			method,
+			headers: {
+				Authorization: `Bearer ${options.token}`,
+				Accept: GITVERSE_ACCEPT_HEADER,
+				...config.headers,
+			},
+			qs: config.params as IDataObject | undefined,
+			body: body as IHttpRequestOptions['body'],
+			returnFullResponse: true,
+			// The status is inspected here so that retries and errors stay in one place.
+			ignoreHttpStatusErrors: true,
+			disableFollowRedirect: config.disableFollowRedirect,
+			encoding: config.encoding,
+			timeout: config.timeout ?? timeout,
+		};
 
-	client.interceptors.response.use(
-		(response: AxiosResponse) => response,
-		async (error) => {
-			const config = error.config as RetryableRequestConfig | undefined;
-			const attempt = config?.__gitverseAttempt ?? 0;
+		let attempt = 0;
 
-			if (
-				config &&
-				retries > 0 &&
-				isRetryableStatus(error.response?.status) &&
-				attempt < retries
-			) {
-				const nextAttempt = attempt + 1;
-				const waitFor = retryDelay(
-					nextAttempt,
-					parseRetryAfterMs(error.response?.headers)
-				);
+		for (;;) {
+			const raw = await context.helpers.httpRequest(requestOptions);
+			const status: number = raw?.statusCode ?? 200;
+			const headers = normalizeHeaders(raw?.headers);
 
-				await sleep(waitFor);
+			if (isRetryableStatus(status) && attempt < retries) {
+				attempt += 1;
 
-				config.__gitverseAttempt = nextAttempt;
+				await sleep(retryDelay(attempt, parseRetryAfterMs(headers)));
 
-				return client.request(config);
+				continue;
 			}
 
-			if (error.response?.data) {
-				const message = extractErrorMessage(error.response.data);
-
-				if (message !== null) {
-					error.message = `[Gitverse ${error.response.status}] ${message}`;
-				}
+			if (status >= 400) {
+				throw new GitverseApiError(status, raw?.body, headers);
 			}
 
-			return Promise.reject(error);
+			return { data: raw?.body as T, status, headers };
 		}
-	);
+	}
 
-	return client;
+	return {
+		request: (config) => send(config.method, config.url, config.data, config),
+		get: (url, config) => send('GET', url, undefined, config),
+		post: (url, body, config) => send('POST', url, body, config),
+		put: (url, body, config) => send('PUT', url, body, config),
+		patch: (url, body, config) => send('PATCH', url, body, config),
+		delete: (url, config) =>
+			send('DELETE', url, config?.data, config),
+	};
 }
 
 /**
@@ -294,7 +455,7 @@ export function buildPaginationParams(
  * most `limit` (or `perPage`) items is requested.
  */
 export async function fetchPages<T>(
-	client: AxiosInstance,
+	client: GitverseClient,
 	url: string,
 	options: FetchPagesOptions = {}
 ): Promise<T[]> {
@@ -307,7 +468,7 @@ export async function fetchPages<T>(
 
 	if (!options.returnAll) {
 		const count = limit > 0 ? Math.min(limit, perPage) : perPage;
-		const response: AxiosResponse = await client.get(url, {
+		const response = await client.get(url, {
 			...config,
 			params: { ...params, ...buildPaginationParams(1, count, pageParam, perPageParam) },
 		});
@@ -321,7 +482,7 @@ export async function fetchPages<T>(
 	let lastPage = Infinity;
 
 	do {
-		const response: AxiosResponse = await client.get(url, {
+		const response = await client.get(url, {
 			...config,
 			params: { ...params, ...buildPaginationParams(page, perPage, pageParam, perPageParam) },
 		});
@@ -337,11 +498,7 @@ export async function fetchPages<T>(
 			break;
 		}
 
-		lastPage = Math.min(
-			lastPage,
-			getLastPage(response.headers?.['link'] as string | undefined)
-		);
-
+		lastPage = Math.min(lastPage, getLastPage(response.headers?.['link']));
 		page += 1;
 	} while (page <= lastPage);
 

@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import { getPaginationOptions, getRequiredString } from '../../Gitverse/utils/params';
@@ -11,7 +11,7 @@ function base(ctx: IExecuteFunctions, itemIndex: number): string {
 
 export async function getVariables(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const pagination = getPaginationOptions(this, itemIndex);
@@ -21,7 +21,7 @@ export async function getVariables(
 
 export async function createVariable(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const response = await api.post(base(this, itemIndex), {
@@ -34,7 +34,7 @@ export async function createVariable(
 
 export async function getVariable(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const name = getRequiredString(this, itemIndex, 'variableName', 'Variable name is required');
@@ -46,7 +46,7 @@ export async function getVariable(
 
 export async function updateVariable(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const name = getRequiredString(this, itemIndex, 'variableName', 'Variable name is required');
@@ -61,7 +61,7 @@ export async function updateVariable(
 
 export async function deleteVariable(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const name = getRequiredString(this, itemIndex, 'variableName', 'Variable name is required');

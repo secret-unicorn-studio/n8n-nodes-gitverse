@@ -1,7 +1,7 @@
 import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
-import { fetchPages } from '../../../utils/api';
+import { buildMultipartBody, fetchPages } from '../../../utils/api';
 import {
 	encodePath,
 	getOptionalString,
@@ -31,7 +31,7 @@ function toRecord(fields: Record<string, unknown>): Record<string, unknown> {
 
 export async function getManyReleases(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -42,7 +42,7 @@ export async function getManyReleases(
 
 export async function getRelease(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -60,7 +60,7 @@ export async function getRelease(
 
 export async function getReleaseByTag(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -73,7 +73,7 @@ export async function getReleaseByTag(
 
 export async function createRelease(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -102,7 +102,7 @@ export async function createRelease(
 
 export async function updateRelease(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -127,7 +127,7 @@ export async function updateRelease(
 
 export async function deleteRelease(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -145,7 +145,7 @@ export async function deleteRelease(
 
 export async function deleteReleaseByTag(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -158,7 +158,7 @@ export async function deleteReleaseByTag(
 
 export async function getReleaseAssets(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -179,7 +179,7 @@ export async function getReleaseAssets(
 
 export async function uploadReleaseAsset(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -205,16 +205,20 @@ export async function uploadReleaseAsset(
 	}
 
 	// The endpoint takes multipart/form-data with the file name and the file itself.
-	const form = new (globalThis as any).FormData();
-	const Blob = (globalThis as any).Blob;
-	const part = binary.mimeType ? new Blob([buffer], { type: binary.mimeType }) : new Blob([buffer]);
-
-	form.append('name', assetName);
-	form.append('attachment', part, fileName || assetName);
+	const { body, contentType } = buildMultipartBody([
+		{ name: 'name', value: assetName },
+		{
+			name: 'attachment',
+			value: buffer,
+			fileName: fileName || assetName,
+			contentType: binary.mimeType,
+		},
+	]);
 
 	const response = await api.post(
 		`${releasesPath(owner, repo)}/${releaseId}/assets`,
-		form
+		body,
+		{ headers: { 'Content-Type': contentType } }
 	);
 
 	return response.data;
@@ -222,7 +226,7 @@ export async function uploadReleaseAsset(
 
 export async function deleteReleaseAsset(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

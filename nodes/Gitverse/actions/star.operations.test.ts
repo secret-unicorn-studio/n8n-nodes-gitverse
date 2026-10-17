@@ -1,4 +1,5 @@
 import * as star from './star.operations';
+import { GitverseApiError } from '../../../utils/api';
 import { createApi, createContext, repositoryLocator } from '../__testutils__/context';
 
 describe('star operations', () => {
@@ -55,7 +56,7 @@ describe('star operations', () => {
 
 		it('should report a repository that is not starred', async () => {
 			const ctx = createContext({ params: { repository: repositoryLocator } });
-			api.get.mockRejectedValue({ response: { status: 404 } });
+			api.get.mockRejectedValue(new GitverseApiError(404, { message: 'Not found' }));
 
 			expect(await star.checkStar.call(ctx, api as any, 0)).toEqual({ starred: false });
 		});
@@ -69,10 +70,10 @@ describe('star operations', () => {
 
 		it('should rethrow any other error', async () => {
 			const ctx = createContext({ params: { repository: repositoryLocator } });
-			api.get.mockRejectedValue({ response: { status: 500 } });
+			api.get.mockRejectedValue(new GitverseApiError(500, { message: 'boom' }));
 
-			await expect(star.checkStar.call(ctx, api as any, 0)).rejects.toEqual({
-				response: { status: 500 },
+			await expect(star.checkStar.call(ctx, api as any, 0)).rejects.toMatchObject({
+				status: 500,
 			});
 		});
 	});

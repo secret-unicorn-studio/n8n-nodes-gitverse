@@ -545,15 +545,20 @@ describe('issue operations', () => {
 			api.post.mockResolvedValue({ data: { id: 5 } });
 
 			const result = await issue.addIssueCommentAttachment.call(ctx, api as any, 0);
-			const [url, form] = api.post.mock.calls[0];
+			const [url, body, config] = api.post.mock.calls[0];
 
 			expect(url).toBe(`${BASE}/issues/comments/77/attachments`);
-			expect(form).toBeInstanceOf((globalThis as any).FormData);
+			expect(body).toBeInstanceOf(Buffer);
+			expect(config.headers['Content-Type']).toMatch(
+				/^multipart\/form-data; boundary=/
+			);
 
-			const file = (form as any).get('attachment');
+			const text = (body as Buffer).toString('utf8');
 
-			expect(file.name).toBe('note.txt');
-			expect(file.type).toBe('text/plain');
+			expect(text).toContain('name="attachment"');
+			expect(text).toContain('filename="note.txt"');
+			expect(text).toContain('Content-Type: text/plain');
+			expect(text).toContain('hello');
 			expect(result).toEqual({ id: 5 });
 		});
 
@@ -565,10 +570,9 @@ describe('issue operations', () => {
 			api.post.mockResolvedValue({ data: null });
 
 			const result = await issue.addIssueCommentAttachment.call(ctx, api as any, 0);
-			const form = api.post.mock.calls[0][1];
-			const file = (form as any).get('attachment');
+			const body = api.post.mock.calls[0][1] as Buffer;
 
-			expect(file.name).toBe('attachment-77');
+			expect(body.toString('utf8')).toContain('filename="attachment-77"');
 			expect(result).toEqual({ success: true });
 		});
 
@@ -735,12 +739,15 @@ describe('issue 2.0 operations', () => {
 			api.post.mockResolvedValue({ data: [{ id: 55 }] });
 
 			const result = await issue.addIssueAttachment.call(ctx, api as any, 0);
-			const [url, form] = api.post.mock.calls[0];
-			const file = (form as any).get('attachment');
+			const [url, body, config] = api.post.mock.calls[0];
 
 			expect(url).toBe(`${BASE}/issues/6/attachments`);
-			expect(file.name).toBe('error.log');
-			expect(file.type).toBe('text/plain');
+			expect(config.headers['Content-Type']).toMatch(/^multipart\/form-data; boundary=/);
+
+			const text = (body as Buffer).toString('utf8');
+
+			expect(text).toContain('filename="error.log"');
+			expect(text).toContain('Content-Type: text/plain');
 			expect(result).toEqual([{ id: 55 }]);
 		});
 
@@ -753,9 +760,9 @@ describe('issue 2.0 operations', () => {
 
 			await issue.addIssueAttachment.call(ctx, api as any, 0);
 
-			const form = api.post.mock.calls[0][1];
+			const body = api.post.mock.calls[0][1] as Buffer;
 
-			expect((form as any).get('attachment').name).toBe('attachment-6');
+			expect(body.toString('utf8')).toContain('filename="attachment-6"');
 		});
 	});
 

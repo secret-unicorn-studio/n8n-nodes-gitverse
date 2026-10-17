@@ -1,7 +1,7 @@
 import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
-import { fetchPages } from '../../../utils/api';
+import { buildMultipartBody, fetchPages } from '../../../utils/api';
 import {
 	getNumberList,
 	getOptionalString,
@@ -22,7 +22,7 @@ function commentPath(owner: string, repo: string, issueNumber: number, commentId
 
 export async function getManyIssues(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -56,7 +56,7 @@ export async function getManyIssues(
 
 export async function getIssue(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -74,7 +74,7 @@ export async function getIssue(
 
 export async function updateIssue(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -124,7 +124,7 @@ export async function updateIssue(
 
 export async function getIssueComments(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -152,7 +152,7 @@ export async function getIssueComments(
 
 export async function getIssueComment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -170,7 +170,7 @@ export async function getIssueComment(
 
 export async function createIssueComment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -205,7 +205,7 @@ export async function createIssueComment(
 
 export async function updateIssueComment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -231,7 +231,7 @@ export async function updateIssueComment(
 
 export async function deleteIssueComment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -255,7 +255,7 @@ export async function deleteIssueComment(
 
 export async function addIssueCommentReaction(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -282,7 +282,7 @@ export async function addIssueCommentReaction(
 
 export async function deleteIssueCommentReaction(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -314,7 +314,7 @@ export async function deleteIssueCommentReaction(
 
 export async function getIssueTimeline(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -342,7 +342,7 @@ export async function getIssueTimeline(
 
 export async function addIssueCommentAttachment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -358,15 +358,19 @@ export async function addIssueCommentAttachment(
 	const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, propertyName);
 
 	// The endpoint only accepts multipart/form-data with a single `attachment` part.
-	const form = new (globalThis as any).FormData();
-	const Blob = (globalThis as any).Blob;
-	const part = binary.mimeType ? new Blob([buffer], { type: binary.mimeType }) : new Blob([buffer]);
-
-	form.append('attachment', part, binary.fileName ?? `attachment-${commentId}`);
+	const { body, contentType } = buildMultipartBody([
+		{
+			name: 'attachment',
+			value: buffer,
+			fileName: binary.fileName ?? `attachment-${commentId}`,
+			contentType: binary.mimeType,
+		},
+	]);
 
 	const response = await api.post(
 		`${issuesPath(owner, repo)}/comments/${commentId}/attachments`,
-		form
+		body,
+		{ headers: { 'Content-Type': contentType } }
 	);
 
 	return response.data ?? { success: true };
@@ -374,7 +378,7 @@ export async function addIssueCommentAttachment(
 
 export async function deleteIssueCommentAttachment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -404,7 +408,7 @@ export async function deleteIssueCommentAttachment(
 
 export async function createIssue(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -448,7 +452,7 @@ export async function createIssue(
 
 export async function getIssueLabels(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -466,7 +470,7 @@ export async function getIssueLabels(
 
 export async function addIssueAttachment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -481,15 +485,20 @@ export async function addIssueAttachment(
 	const binary = this.helpers.assertBinaryData(itemIndex, propertyName);
 	const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, propertyName);
 
-	const form = new (globalThis as any).FormData();
-	const Blob = (globalThis as any).Blob;
-	const part = binary.mimeType ? new Blob([buffer], { type: binary.mimeType }) : new Blob([buffer]);
-
-	form.append('attachment', part, binary.fileName ?? `attachment-${issueNumber}`);
+	// The endpoint takes the same multipart payload as the comment attachments.
+	const { body, contentType } = buildMultipartBody([
+		{
+			name: 'attachment',
+			value: buffer,
+			fileName: binary.fileName ?? `attachment-${issueNumber}`,
+			contentType: binary.mimeType,
+		},
+	]);
 
 	const response = await api.post(
 		`${issuesPath(owner, repo)}/${issueNumber}/attachments`,
-		form
+		body,
+		{ headers: { 'Content-Type': contentType } }
 	);
 
 	return response.data;
@@ -497,7 +506,7 @@ export async function addIssueAttachment(
 
 export async function deleteIssueAttachment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -523,7 +532,7 @@ export async function deleteIssueAttachment(
 
 export async function getIssueParent(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -541,7 +550,7 @@ export async function getIssueParent(
 
 export async function getSubIssues(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -562,7 +571,7 @@ export async function getSubIssues(
 
 export async function addSubIssue(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -595,7 +604,7 @@ export async function addSubIssue(
 
 export async function removeSubIssue(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -655,7 +664,7 @@ function readDevelopmentLinks(
 
 export async function getIssueDevelopment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -673,7 +682,7 @@ export async function getIssueDevelopment(
 
 export async function linkIssueDevelopment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -694,7 +703,7 @@ export async function linkIssueDevelopment(
 
 export async function unlinkIssueDevelopment(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -715,7 +724,7 @@ export async function unlinkIssueDevelopment(
 
 export async function addIssueReaction(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -747,7 +756,7 @@ function readIssueIds(
 
 export async function getIssueBulkValues(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -769,7 +778,7 @@ export async function getIssueBulkValues(
 
 export async function bulkDeleteIssues(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

@@ -1,12 +1,12 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient, isGitverseError } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import { getOptionalString, getPaginationOptions, getRepositoryRef } from '../utils/params';
 
 export async function getManyStars(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const pagination = getPaginationOptions(this, itemIndex, 50);
@@ -20,7 +20,7 @@ export async function getManyStars(
 
 export async function checkStar(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -31,7 +31,7 @@ export async function checkStar(
 		return response.data ?? { starred: true };
 	} catch (error) {
 		// The API answers 404 when the repository is not starred.
-		if ((error as { response?: { status?: number } })?.response?.status === 404) {
+		if (isGitverseError(error, 404)) {
 			return { starred: false };
 		}
 
@@ -41,7 +41,7 @@ export async function checkStar(
 
 export async function addStar(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -53,7 +53,7 @@ export async function addStar(
 
 export async function removeStar(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);

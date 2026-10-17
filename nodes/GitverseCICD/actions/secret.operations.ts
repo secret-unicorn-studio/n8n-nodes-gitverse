@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import { getPaginationOptions, getRequiredString } from '../../Gitverse/utils/params';
@@ -11,7 +11,7 @@ function base(ctx: IExecuteFunctions, itemIndex: number): string {
 
 export async function getSecrets(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const pagination = getPaginationOptions(this, itemIndex);
@@ -21,7 +21,7 @@ export async function getSecrets(
 
 export async function getSecret(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const name = getRequiredString(this, itemIndex, 'secretName', 'Secret name is required');
@@ -36,7 +36,7 @@ export async function getSecret(
  */
 export async function upsertSecret(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const name = getRequiredString(this, itemIndex, 'secretName', 'Secret name is required');
@@ -51,7 +51,7 @@ export async function upsertSecret(
 
 export async function deleteSecret(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const name = getRequiredString(this, itemIndex, 'secretName', 'Secret name is required');

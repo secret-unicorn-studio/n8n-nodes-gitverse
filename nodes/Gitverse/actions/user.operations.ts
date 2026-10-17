@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import {
@@ -16,7 +16,7 @@ function readEmails(ctx: IExecuteFunctions, itemIndex: number): string[] {
 
 export async function getUser(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const response = await api.get('/user');
@@ -26,7 +26,7 @@ export async function getUser(
 
 export async function getUserByLogin(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const username = getRequiredString(this, itemIndex, 'username', 'Username is required');
@@ -38,7 +38,7 @@ export async function getUserByLogin(
 
 export async function getUserById(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const accountId = getRequiredNumber(this, itemIndex, 'accountId', 'Account ID is required');
@@ -50,7 +50,7 @@ export async function getUserById(
 
 export async function getUserEmails(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const pagination = getPaginationOptions(this, itemIndex, 50);
@@ -60,7 +60,7 @@ export async function getUserEmails(
 
 export async function addUserEmails(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const emails = readEmails(this, itemIndex);
@@ -72,7 +72,7 @@ export async function addUserEmails(
 
 export async function deleteUserEmails(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const emails = readEmails(this, itemIndex);
@@ -84,7 +84,7 @@ export async function deleteUserEmails(
 
 export async function searchUsers(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const params: Record<string, unknown> = {

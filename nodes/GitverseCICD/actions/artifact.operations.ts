@@ -1,5 +1,5 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { AxiosInstance } from 'axios';
+import { GitverseClient } from '../../../utils/api';
 
 import { fetchPages } from '../../../utils/api';
 import {
@@ -14,7 +14,7 @@ function artifactsPath(owner: string, repo: string): string {
 
 export async function getArtifacts(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -25,7 +25,7 @@ export async function getArtifacts(
 
 export async function getArtifact(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -43,7 +43,7 @@ export async function getArtifact(
 
 export async function deleteArtifact(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -65,7 +65,7 @@ export async function deleteArtifact(
  */
 export async function getArtifactDownloadUrl(
 	this: IExecuteFunctions,
-	api: AxiosInstance,
+	api: GitverseClient,
 	itemIndex: number
 ): Promise<Record<string, any>> {
 	const { owner, repo } = getRepositoryRef(this, itemIndex);
@@ -77,8 +77,7 @@ export async function getArtifactDownloadUrl(
 	);
 
 	const response = await api.get(`${artifactsPath(owner, repo)}/${artifactId}/zip`, {
-		maxRedirects: 0,
-		validateStatus: () => true,
+		disableFollowRedirect: true,
 	});
 
 	const location = (response.headers ?? {})['location'];
