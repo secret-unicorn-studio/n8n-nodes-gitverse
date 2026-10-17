@@ -139,6 +139,8 @@ describe('Gitverse.node.execute', () => {
 			'branch',
 			'commit',
 			'file',
+			'issue',
+			'label',
 			'pullRequest',
 			'repository',
 		]);

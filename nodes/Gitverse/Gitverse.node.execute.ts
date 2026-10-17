@@ -9,6 +9,8 @@ import { createApiClient, GitverseApiOptions } from '../../utils/api';
 import * as branch from './actions/branch.operations';
 import * as commit from './actions/commit.operations';
 import * as file from './actions/file.operations';
+import * as issue from './actions/issue.operations';
+import * as label from './actions/label.operations';
 import * as pullRequest from './actions/pullRequest.operations';
 import * as repository from './actions/repository.operations';
 import { toJsonRecord } from './utils/params';
@@ -37,6 +39,27 @@ export const operations: Record<string, ResourceOperations> = {
 		get: file.getFile,
 		createOrUpdate: file.createOrUpdateFile,
 		delete: file.deleteFile,
+	},
+	issue: {
+		get: issue.getIssue,
+		getAll: issue.getManyIssues,
+		update: issue.updateIssue,
+		getComments: issue.getIssueComments,
+		getComment: issue.getIssueComment,
+		createComment: issue.createIssueComment,
+		updateComment: issue.updateIssueComment,
+		deleteComment: issue.deleteIssueComment,
+		addCommentReaction: issue.addIssueCommentReaction,
+		deleteCommentReaction: issue.deleteIssueCommentReaction,
+		getTimeline: issue.getIssueTimeline,
+		addCommentAttachment: issue.addIssueCommentAttachment,
+		deleteCommentAttachment: issue.deleteIssueCommentAttachment,
+	},
+	label: {
+		get: label.getLabel,
+		getAll: label.getManyLabels,
+		create: label.createLabel,
+		update: label.updateLabel,
 	},
 	pullRequest: {
 		get: pullRequest.getPullRequest,

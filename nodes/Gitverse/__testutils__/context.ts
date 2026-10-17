@@ -11,6 +11,7 @@ export interface ContextOptions {
 	items?: any[];
 	continueOnFail?: boolean;
 	credentials?: Record<string, any>;
+	binary?: Record<string, { data: Buffer; fileName?: string; mimeType?: string }>;
 }
 
 export function createApi(): MockApi {
@@ -28,6 +29,7 @@ export function createContext({
 	items = [{ json: {} }],
 	continueOnFail = false,
 	credentials = { baseUrl: 'https://api.gitverse.ru', token: 'secret-token' },
+	binary = {},
 }: ContextOptions = {}): any {
 	return {
 		getInputData: jest.fn(() => items),
@@ -43,6 +45,26 @@ export function createContext({
 		getCredentials: jest.fn().mockResolvedValue(credentials),
 		getNode: jest.fn(() => ({ name: 'Gitverse', type: 'gitverse' })),
 		continueOnFail: jest.fn(() => continueOnFail),
+		helpers: {
+			assertBinaryData: jest.fn((_itemIndex: number, propertyName: string) => {
+				const entry = binary[propertyName];
+
+				if (!entry) {
+					throw new Error(`No binary data property "${propertyName}"`);
+				}
+
+				return { data: entry.data.toString('base64'), fileName: entry.fileName, mimeType: entry.mimeType };
+			}),
+			getBinaryDataBuffer: jest.fn(async (_itemIndex: number, propertyName: string) => {
+				const entry = binary[propertyName];
+
+				if (!entry) {
+					throw new Error(`No binary data property "${propertyName}"`);
+				}
+
+				return entry.data;
+			}),
+		},
 	};
 }
 

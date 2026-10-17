@@ -40,6 +40,26 @@ Observed against the live API while building the pull request operations:
   **Get Merge Status** currently reports `mergeable: false` for every pull request we tried.
   `403` means the token has no access to the repository and is surfaced as an error.
 
+### Issue and label specifics
+
+Observed against the live API while building the issue and label operations:
+
+- The public API has **no endpoint for creating an issue** (`POST /issues` answers `403`), so
+  issues can only be listed, read, updated and commented on.
+- Omitting `state` on `GET /issues` returns only the *open* issues, contrary to the
+  documentation. The node therefore always sends `state`, defaulting to `all`.
+- `GET /issues/{n}/comments` takes no pagination at all, only the `since` / `before` filters.
+  The timeline (`GET /issues/{n}/timeline`) is paginated normally.
+- Renaming a label uses `name` in the request body. The documentation names the field
+  `new_name`, which the server accepts and silently ignores.
+- Label listings paginate with `limit` instead of `per_page`, and there is **no endpoint for
+  deleting a label**: every `DELETE` shape answers `400`.
+- Attachments are uploaded as `multipart/form-data` with a single `attachment` part, exactly as
+  the documented `curl -F "attachment=@file"` example. The test repository rejects every upload
+  with an empty `422`, verified with `curl` too, so the request shape could only be checked
+  locally. There is no documented endpoint for listing attachments (`GET .../attachments`
+  answers `400`).
+
 ## Features
 
 - **Repository** — Get, list (own or organization), create, update, delete, fork, language
@@ -49,6 +69,9 @@ Observed against the live API while building the pull request operations:
 - **Commit** — Get, list (branch and path filters), compare two references
 - **Pull Request** — Get, list, create, update, update head branch, merge status, changed
   files, commits, comments, reviews (create, list, submit, delete)
+- **Issue** — Get, list (state, assignee, type, creator, labels, sort, since), update,
+  comments (create, list, get by ID, update, delete), reactions, attachments, timeline
+- **Label** — Get, list, create, update (rename included)
 - **Webhook** — Receive push events from Gitverse
 
 Repository and branch fields are searchable pickers: select from a list, paste a repository URL,
@@ -105,20 +128,15 @@ Main node for all Gitverse API operations.
 
 #### Resources & Operations
 
-| Resource | Operation | Description |
-|----------|-----------|-------------|
-| Repository | Get | Get repository details |
-| Repository | Get Many | List user's repositories |
-| Branch | Get | Get branch info |
-| Branch | Get Many | List branches |
-| Branch | Create | Create new branch from base |
-| File | Get | Get file content |
-| File | Create or Update | Create or update a file |
-| Pull Request | Get | Get PR details |
-| Pull Request | Get Many | List PRs |
-| Pull Request | Create | Create a new PR |
-| Pull Request | Compare | Compare two branches |
-| Commit | Get Many | List commits |
+| Resource | Operations |
+|----------|------------|
+| Repository | Get, Get Many, Create, Update, Delete, Fork, Get Languages, Get Collaborators, Add Collaborator |
+| Branch | Get, Get Many, Create, Delete |
+| File | Get, Create or Update, Delete |
+| Commit | Get, Get Many, Compare |
+| Pull Request | Get, Get Many, Create, Update, Update Branch, Get Merge Status, Get Changed Files, Get Commits, Create Comment, Get Reviews, Create Review, Submit Review, Delete Review |
+| Issue | Get, Get Many, Update, Get Comments, Get Comment, Create Comment, Update Comment, Delete Comment, Add Comment Reaction, Delete Comment Reaction, Get Timeline, Add Comment Attachment, Delete Comment Attachment |
+| Label | Get, Get Many, Create, Update |
 
 ### Gitverse Webhook
 

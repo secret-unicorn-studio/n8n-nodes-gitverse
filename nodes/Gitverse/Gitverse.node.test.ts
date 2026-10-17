@@ -65,7 +65,15 @@ describe('Gitverse node', () => {
 		const resourceProp = findProperty('resource') as any;
 		const values = resourceProp.options.map((o: any) => o.value);
 
-		expect(values).toEqual(['branch', 'commit', 'file', 'pullRequest', 'repository']);
+		expect(values).toEqual([
+			'branch',
+			'commit',
+			'file',
+			'issue',
+			'label',
+			'pullRequest',
+			'repository',
+		]);
 	});
 
 	it('should scope every operation to a resource', () => {
@@ -172,6 +180,52 @@ describe('Gitverse node', () => {
 			'update',
 			'updateBranch',
 		]);
+	});
+
+	it('should expose the documented issue operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const issueOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('issue'))
+			.map((option) => option.value);
+
+		expect([...issueOperations].sort()).toEqual([
+			'addCommentAttachment',
+			'addCommentReaction',
+			'createComment',
+			'deleteComment',
+			'deleteCommentAttachment',
+			'deleteCommentReaction',
+			'get',
+			'getAll',
+			'getComment',
+			'getComments',
+			'getTimeline',
+			'update',
+			'updateComment',
+		]);
+	});
+
+	it('should expose the documented label operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const labelOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('label'))
+			.map((option) => option.value);
+
+		expect([...labelOperations].sort()).toEqual(['create', 'get', 'getAll', 'update']);
+	});
+
+	it('should have issue fields', () => {
+		expect(findProperty('issueNumber')).toBeDefined();
+		expect(findProperty('commentId')).toBeDefined();
+		expect(findProperty('reactionId')).toBeDefined();
+		expect(findProperty('attachmentId')).toBeDefined();
+	});
+
+	it('should have label fields', () => {
+		expect(findProperty('label')).toBeDefined();
+		expect(findProperty('color')).toBeDefined();
+		expect(findProperty('labelDescription')).toBeDefined();
+		expect(findProperty('exclusive')).toBeDefined();
 	});
 
 	it('should register the list search methods', () => {

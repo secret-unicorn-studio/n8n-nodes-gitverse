@@ -6,6 +6,8 @@ import {
 import { branchFields, branchOperations } from './descriptions/branch.description';
 import { commitFields, commitOperations } from './descriptions/commit.description';
 import { fileFields, fileOperations } from './descriptions/file.description';
+import { issueFields, issueOperations } from './descriptions/issue.description';
+import { labelFields, labelOperations } from './descriptions/label.description';
 import { pullRequestFields, pullRequestOperations } from './descriptions/pullRequest.description';
 import { repositoryFields, repositoryOperations } from './descriptions/repository.description';
 
@@ -23,6 +25,14 @@ export const gitverseResources: INodePropertyOptions[] = [
 		value: 'file',
 	},
 	{
+		name: 'Issue',
+		value: 'issue',
+	},
+	{
+		name: 'Label',
+		value: 'label',
+	},
+	{
 		name: 'Pull Request',
 		value: 'pullRequest',
 	},
@@ -38,6 +48,8 @@ export const gitverseOperations: INodePropertyOptions[] = [
 	...fileOperations,
 	...commitOperations,
 	...pullRequestOperations,
+	...issueOperations,
+	...labelOperations,
 ];
 
 export const gitverseNodeProperties: INodeProperties[] = [
@@ -62,4 +74,6 @@ export const gitverseNodeProperties: INodeProperties[] = [
 	...fileFields,
 	...commitFields,
 	...pullRequestFields,
+	...issueFields,
+	...labelFields,
 ];
