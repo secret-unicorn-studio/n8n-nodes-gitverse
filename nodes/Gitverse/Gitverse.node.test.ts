@@ -72,6 +72,7 @@ describe('Gitverse node', () => {
 			'issue',
 			'label',
 			'pullRequest',
+			'release',
 			'repository',
 		]);
 	});
@@ -226,6 +227,35 @@ describe('Gitverse node', () => {
 		expect(findProperty('color')).toBeDefined();
 		expect(findProperty('labelDescription')).toBeDefined();
 		expect(findProperty('exclusive')).toBeDefined();
+	});
+
+	it('should expose the documented release operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const releaseOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('release'))
+			.map((option) => option.value);
+
+		expect([...releaseOperations].sort()).toEqual([
+			'create',
+			'delete',
+			'deleteAsset',
+			'deleteByTag',
+			'get',
+			'getAll',
+			'getAssets',
+			'getByTag',
+			'update',
+			'uploadAsset',
+		]);
+	});
+
+	it('should have release fields', () => {
+		expect(findProperty('releaseId')).toBeDefined();
+		expect(findProperty('releaseTag')).toBeDefined();
+		expect(findProperty('tagName')).toBeDefined();
+		expect(findProperty('releaseBody')).toBeDefined();
+		expect(findProperty('assetId')).toBeDefined();
+		expect(findProperty('assetName')).toBeDefined();
 	});
 
 	it('should register the list search methods', () => {

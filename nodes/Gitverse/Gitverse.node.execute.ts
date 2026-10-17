@@ -12,6 +12,7 @@ import * as file from './actions/file.operations';
 import * as issue from './actions/issue.operations';
 import * as label from './actions/label.operations';
 import * as pullRequest from './actions/pullRequest.operations';
+import * as release from './actions/release.operations';
 import * as repository from './actions/repository.operations';
 import { toJsonRecord } from './utils/params';
 
@@ -75,6 +76,18 @@ export const operations: Record<string, ResourceOperations> = {
 		createReview: pullRequest.createPullRequestReview,
 		submitReview: pullRequest.submitPullRequestReview,
 		deleteReview: pullRequest.deletePullRequestReview,
+	},
+	release: {
+		get: release.getRelease,
+		getAll: release.getManyReleases,
+		getByTag: release.getReleaseByTag,
+		create: release.createRelease,
+		update: release.updateRelease,
+		delete: release.deleteRelease,
+		deleteByTag: release.deleteReleaseByTag,
+		getAssets: release.getReleaseAssets,
+		uploadAsset: release.uploadReleaseAsset,
+		deleteAsset: release.deleteReleaseAsset,
 	},
 	repository: {
 		get: repository.getRepository,

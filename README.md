@@ -60,6 +60,17 @@ Observed against the live API while building the issue and label operations:
   locally. There is no documented endpoint for listing attachments (`GET .../attachments`
   answers `400`).
 
+### Release specifics
+
+- On a repository without releases, `GET /releases` answers `404 REPO_NOT_FOUND` instead of an
+  empty array, so **Get Many** fails with "Repository not found" on an empty repository.
+- Creating a release also creates its tag, but deleting the release leaves the tag behind. There
+  is no documented tags endpoint (`GET /tags` answers `400`); tags live under
+  `GET /repos/{o}/{r}/git/matching-refs/tags` and can be removed with
+  `DELETE /repos/{o}/{r}/git/refs/tags/{tag}`, which answers `204`.
+- Release assets are uploaded as `multipart/form-data` with a `name` field next to the
+  `attachment` file, and there uploads work — unlike issue attachments on the same repository.
+
 ## Features
 
 - **Repository** — Get, list (own or organization), create, update, delete, fork, language
@@ -72,6 +83,8 @@ Observed against the live API while building the issue and label operations:
 - **Issue** — Get, list (state, assignee, type, creator, labels, sort, since), update,
   comments (create, list, get by ID, update, delete), reactions, attachments, timeline
 - **Label** — Get, list, create, update (rename included)
+- **Release** — Get by ID or tag, list, create, update, delete by ID or tag, list assets, upload
+  an asset, delete an asset
 - **Webhook** — Receive push events from Gitverse
 
 Repository and branch fields are searchable pickers: select from a list, paste a repository URL,
@@ -137,6 +150,7 @@ Main node for all Gitverse API operations.
 | Pull Request | Get, Get Many, Create, Update, Update Branch, Get Merge Status, Get Changed Files, Get Commits, Create Comment, Get Reviews, Create Review, Submit Review, Delete Review |
 | Issue | Get, Get Many, Update, Get Comments, Get Comment, Create Comment, Update Comment, Delete Comment, Add Comment Reaction, Delete Comment Reaction, Get Timeline, Add Comment Attachment, Delete Comment Attachment |
 | Label | Get, Get Many, Create, Update |
+| Release | Get, Get Many, Get by Tag, Create, Update, Delete, Delete by Tag, Get Assets, Upload Asset, Delete Asset |
 
 ### Gitverse Webhook
 

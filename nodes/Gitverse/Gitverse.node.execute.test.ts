@@ -142,6 +142,7 @@ describe('Gitverse.node.execute', () => {
 			'issue',
 			'label',
 			'pullRequest',
+			'release',
 			'repository',
 		]);
 	});
