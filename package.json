@@ -4,6 +4,7 @@
   "description": "n8n nodes for Gitverse (Gitea) API",
   "keywords": [
     "n8n",
+    "n8n-community-node-package",
     "n8n-nodes",
     "gitverse",
     "gitea"
@@ -12,11 +13,16 @@
   "author": "SUSTUDIO",
   "main": "dist/index.js",
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/__testutils__"
   ],
   "repository": {
     "type": "git",
-    "url": "git@gitverse.ru:SUSTUDIO/n8n-nodes-gitverse.git"
+    "url": "git+https://github.com/secret-unicorn-studio/n8n-nodes-gitverse.git"
+  },
+  "homepage": "https://github.com/secret-unicorn-studio/n8n-nodes-gitverse#readme",
+  "bugs": {
+    "url": "https://github.com/secret-unicorn-studio/n8n-nodes-gitverse/issues"
   },
   "n8n": {
     "n8nNodesApiVersion": 1,
@@ -40,7 +46,7 @@
     "axios": "^1.15.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-assets.mjs",
     "prepublishOnly": "npm run build",
     "test": "jest",
     "test:coverage": "jest --coverage",

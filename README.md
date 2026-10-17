@@ -210,7 +210,11 @@ Run `npm install && npm run build` on the host first — n8n loads the compiled
 files from `dist/`. This is how the node is wired in
 `n8n-automation/docker-compose.yml`.
 
-### From npm (once the package is published)
+### From npm
+
+Once the package is published, install it as a community node — either from the UI
+(**Settings → Community nodes → Install a community node → `n8n-nodes-gitverse`**) or by
+hand:
 
 ```bash
 docker exec -it n8n sh
@@ -221,6 +225,26 @@ npm install n8n-nodes-gitverse
 
 `N8N_COMMUNITY_PACKAGES` and `N8N_COMMUNITY_PACKAGES_MANAGED_BY_ENV` are not
 supported environment variables, so they cannot be used to install this node.
+
+## Publishing
+
+The package is published to npm from GitHub Actions, which is how n8n community nodes are
+distributed. `.github/workflows/publish.yml` runs the tests, checks that the tag matches the
+version in `package.json`, builds and then publishes.
+
+To cut a release:
+
+```bash
+npm version patch          # or minor / major, this writes the commit and the tag
+git push origin master --follow-tags
+```
+
+The tag has to look like `v1.2.3` and match `package.json`. The workflow needs an `NPM_TOKEN`
+repository secret holding an npm automation token with publish rights for the package.
+
+The build is what puts the files into `dist/` — `tsc` compiles the TypeScript and
+`scripts/copy-assets.mjs` copies the icons and the node codex file next to it, because npm only
+ships `dist/`.
 
 ## Setup
 
