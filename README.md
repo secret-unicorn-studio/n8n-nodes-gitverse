@@ -19,10 +19,26 @@ that the node handles for you:
   surfaces them as `[Gitverse 404] NOT_FOUND: Not found`.
 - `429` and `5xx` responses are retried with exponential backoff, honouring `Retry-After`.
   The budget is configurable through the **Max Retries** credential field.
+- Review listings (`/pulls/{n}/reviews`) are the exception to the pagination rule: they take
+  `limit` instead of `per_page` and reject `sort`.
 
 Legacy credential values that point at the web host (`https://gitverse.ru`,
 `https://gitverse.ru/api/v1`) are rewritten to `https://api.gitverse.ru` automatically;
 self-hosted base URLs are used as-is.
+
+### Pull request specifics
+
+Observed against the live API while building the pull request operations:
+
+- Creating a pull request fails with `400 VALIDATION_ERROR` when the head branch has no
+  commits that the base branch is missing — there has to be something to merge.
+- `base` may be any branch, not only the default one.
+- `PUT /pulls/{n}/update-branch` answers `202` when it starts merging the base into the head,
+  and `422 UNPROCESSABLE_ENTITY` when the head is already up to date.
+- `GET /pulls/{n}/merge` is documented as `204` (mergeable) / `404` (not mergeable), but it
+  answered `404` for both clean and conflicting pull requests in our tests, so
+  **Get Merge Status** currently reports `mergeable: false` for every pull request we tried.
+  `403` means the token has no access to the repository and is surfaced as an error.
 
 ## Features
 
@@ -31,7 +47,8 @@ self-hosted base URLs are used as-is.
 - **Branch** — Get, list, create from a base branch, delete
 - **File** — Read a file or list a directory, create/update, delete
 - **Commit** — Get, list (branch and path filters), compare two references
-- **Pull Request** — Get, list, create
+- **Pull Request** — Get, list, create, update, update head branch, merge status, changed
+  files, commits, comments, reviews (create, list, submit, delete)
 - **Webhook** — Receive push events from Gitverse
 
 Repository and branch fields are searchable pickers: select from a list, paste a repository URL,

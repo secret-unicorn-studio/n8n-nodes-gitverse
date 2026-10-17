@@ -47,6 +47,10 @@ export interface FetchPagesOptions {
 	/** Maximum number of items to return (ignored when `returnAll` is false and `limit` is 0). */
 	limit?: number;
 	perPage?: number;
+	/** Query parameter carrying the page number (defaults to `page`). */
+	pageParam?: string;
+	/** Query parameter carrying the page size (defaults to `per_page`). */
+	perPageParam?: string;
 	params?: Record<string, unknown>;
 	config?: AxiosRequestConfig;
 }
@@ -270,12 +274,17 @@ export function createApiClient(options: GitverseApiOptions): AxiosInstance {
 
 /**
  * Build pagination params for the Gitverse API (`page` / `per_page`).
+ *
+ * A few endpoints (review listings) use `limit` instead of `per_page`, so the
+ * names are configurable.
  */
 export function buildPaginationParams(
 	page: number = 1,
-	perPage: number = DEFAULT_PER_PAGE
+	perPage: number = DEFAULT_PER_PAGE,
+	pageParam: string = 'page',
+	perPageParam: string = 'per_page'
 ): Record<string, number> {
-	return { page, per_page: clampPerPage(perPage) };
+	return { [pageParam]: page, [perPageParam]: clampPerPage(perPage) };
 }
 
 /**
@@ -293,12 +302,14 @@ export async function fetchPages<T>(
 	const params = options.params ?? {};
 	const config = options.config ?? {};
 	const limit = options.limit ?? 0;
+	const pageParam = options.pageParam ?? 'page';
+	const perPageParam = options.perPageParam ?? 'per_page';
 
 	if (!options.returnAll) {
 		const count = limit > 0 ? Math.min(limit, perPage) : perPage;
 		const response: AxiosResponse = await client.get(url, {
 			...config,
-			params: { ...params, ...buildPaginationParams(1, count) },
+			params: { ...params, ...buildPaginationParams(1, count, pageParam, perPageParam) },
 		});
 		const items = toItemArray<T>(response.data);
 
@@ -312,7 +323,7 @@ export async function fetchPages<T>(
 	do {
 		const response: AxiosResponse = await client.get(url, {
 			...config,
-			params: { ...params, ...buildPaginationParams(page, perPage) },
+			params: { ...params, ...buildPaginationParams(page, perPage, pageParam, perPageParam) },
 		});
 		const batch = toItemArray<T>(response.data);
 

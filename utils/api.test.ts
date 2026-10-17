@@ -586,6 +586,11 @@ describe('utils/api', () => {
 				per_page: 50,
 			});
 		});
+
+		it('should rename the parameters on demand', () => {
+			expect(buildPaginationParams(2, 30, 'page', 'limit')).toEqual({ page: 2, limit: 30 });
+			expect(buildPaginationParams(1, 10, 'offset')).toEqual({ offset: 1, per_page: 10 });
+		});
 	});
 
 	describe('fetchPages', () => {
@@ -635,6 +640,21 @@ describe('utils/api', () => {
 				params: { page: 1, per_page: 5 },
 			});
 			expect(result).toHaveLength(5);
+		});
+
+		it('should honour custom pagination parameter names', async () => {
+			const client = createClient();
+			client.get.mockResolvedValue({ data: [] });
+
+			await fetchPages(client as any, '/repos/o/r/pulls/1/reviews', {
+				perPage: 30,
+				pageParam: 'offset',
+				perPageParam: 'limit',
+			});
+
+			expect(client.get).toHaveBeenCalledWith('/repos/o/r/pulls/1/reviews', {
+				params: { offset: 1, limit: 30 },
+			});
 		});
 
 		it('should return an empty array for a non-array payload', async () => {

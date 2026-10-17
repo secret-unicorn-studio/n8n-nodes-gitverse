@@ -151,6 +151,29 @@ describe('Gitverse node', () => {
 		expect(findProperty('state')).toBeDefined();
 	});
 
+	it('should expose the documented pull request operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const pullRequestOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('pullRequest'))
+			.map((option) => option.value);
+
+		expect([...pullRequestOperations].sort()).toEqual([
+			'create',
+			'createComment',
+			'createReview',
+			'deleteReview',
+			'get',
+			'getAll',
+			'getCommits',
+			'getFiles',
+			'getMergeStatus',
+			'getReviews',
+			'submitReview',
+			'update',
+			'updateBranch',
+		]);
+	});
+
 	it('should register the list search methods', () => {
 		expect(node.methods!.listSearch).toBeDefined();
 		expect(typeof node.methods!.listSearch!.searchRepositories).toBe('function');

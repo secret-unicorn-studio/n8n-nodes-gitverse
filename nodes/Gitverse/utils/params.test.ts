@@ -3,8 +3,11 @@ import {
 	parseRepositoryValue,
 	getRepositoryRef,
 	getRequiredString,
+	getRequiredNumber,
 	getRequiredLocator,
 	getOptionalString,
+	getStringList,
+	getNumberList,
 	getPaginationOptions,
 	toJsonRecord,
 	encodePath,
@@ -211,6 +214,110 @@ describe('utils/params', () => {
 			const ctx = createContext({ params: { value: 5 } });
 
 			expect(getOptionalString(ctx, 0, 'value', 'fallback')).toBe('5');
+		});
+	});
+
+	describe('getRequiredNumber', () => {
+		it('should return the number', () => {
+			const ctx = createContext({ params: { count: 3 } });
+
+			expect(getRequiredNumber(ctx, 0, 'count', 'Count is required')).toBe(3);
+		});
+
+		it('should parse numeric strings', () => {
+			const ctx = createContext({ params: { count: '3' } });
+
+			expect(getRequiredNumber(ctx, 0, 'count', 'Count is required')).toBe(3);
+		});
+
+		it('should treat 0 as a value', () => {
+			const ctx = createContext({ params: { count: 0 } });
+
+			expect(getRequiredNumber(ctx, 0, 'count', 'Count is required')).toBe(0);
+		});
+
+		it('should throw for undefined', () => {
+			const ctx = createContext({ params: { count: undefined } });
+
+			expect(() => getRequiredNumber(ctx, 0, 'count', 'Count is required')).toThrow(
+				'Count is required'
+			);
+		});
+
+		it('should throw for null', () => {
+			const ctx = createContext({ params: { count: null } });
+
+			expect(() => getRequiredNumber(ctx, 0, 'count', 'Count is required')).toThrow(
+				'Count is required'
+			);
+		});
+
+		it('should throw for an empty string', () => {
+			const ctx = createContext({ params: { count: '' } });
+
+			expect(() => getRequiredNumber(ctx, 0, 'count', 'Count is required')).toThrow(
+				'Count is required'
+			);
+		});
+
+		it('should throw for a non-numeric string', () => {
+			const ctx = createContext({ params: { count: 'abc' } });
+
+			expect(() => getRequiredNumber(ctx, 0, 'count', 'Count is required')).toThrow(
+				'Count is required'
+			);
+		});
+	});
+
+	describe('getStringList', () => {
+		it('should split and trim a comma-separated value', () => {
+			const ctx = createContext({ params: { users: ' alice, bob ,carol' } });
+
+			expect(getStringList(ctx, 0, 'users')).toEqual(['alice', 'bob', 'carol']);
+		});
+
+		it('should drop empty entries', () => {
+			const ctx = createContext({ params: { users: 'alice,,bob,' } });
+
+			expect(getStringList(ctx, 0, 'users')).toEqual(['alice', 'bob']);
+		});
+
+		it('should return undefined when unset', () => {
+			const ctx = createContext();
+
+			expect(getStringList(ctx, 0, 'users')).toBeUndefined();
+		});
+
+		it('should return undefined when only separators are given', () => {
+			const ctx = createContext({ params: { users: ' , ' } });
+
+			expect(getStringList(ctx, 0, 'users')).toBeUndefined();
+		});
+	});
+
+	describe('getNumberList', () => {
+		it('should parse comma-separated numbers', () => {
+			const ctx = createContext({ params: { labels: '1, 2,3' } });
+
+			expect(getNumberList(ctx, 0, 'labels')).toEqual([1, 2, 3]);
+		});
+
+		it('should skip non-numeric entries', () => {
+			const ctx = createContext({ params: { labels: '1, abc, 3' } });
+
+			expect(getNumberList(ctx, 0, 'labels')).toEqual([1, 3]);
+		});
+
+		it('should return undefined when nothing parses', () => {
+			const ctx = createContext({ params: { labels: 'abc' } });
+
+			expect(getNumberList(ctx, 0, 'labels')).toBeUndefined();
+		});
+
+		it('should return undefined when unset', () => {
+			const ctx = createContext();
+
+			expect(getNumberList(ctx, 0, 'labels')).toBeUndefined();
 		});
 	});
 

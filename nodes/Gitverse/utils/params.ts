@@ -128,6 +128,70 @@ export function getOptionalString(
 }
 
 /**
+ * Read a required numeric parameter.
+ */
+export function getRequiredNumber(
+	ctx: ParameterContext,
+	itemIndex: number,
+	name: string,
+	message: string
+): number {
+	const value = ctx.getNodeParameter(name, itemIndex);
+	const parsed = typeof value === 'number' ? value : Number(value);
+
+	if (value === undefined || value === null || value === '' || Number.isNaN(parsed)) {
+		throw new NodeOperationError(ctx.getNode(), message, { itemIndex });
+	}
+
+	return parsed;
+}
+
+/**
+ * Read a comma-separated parameter into a trimmed list, or `undefined` when empty.
+ */
+export function getStringList(
+	ctx: ParameterContext,
+	itemIndex: number,
+	name: string,
+	fallback = ''
+): string[] | undefined {
+	const raw = getOptionalString(ctx, itemIndex, name, fallback);
+
+	if (!raw) {
+		return undefined;
+	}
+
+	const values = raw
+		.split(',')
+		.map((value) => value.trim())
+		.filter((value) => value !== '');
+
+	return values.length > 0 ? values : undefined;
+}
+
+/**
+ * Read a comma-separated parameter into a list of numbers, skipping non-numeric entries.
+ */
+export function getNumberList(
+	ctx: ParameterContext,
+	itemIndex: number,
+	name: string,
+	fallback = ''
+): number[] | undefined {
+	const values = getStringList(ctx, itemIndex, name, fallback);
+
+	if (!values) {
+		return undefined;
+	}
+
+	const numbers = values
+		.filter((value) => !Number.isNaN(Number(value)))
+		.map((value) => Number(value));
+
+	return numbers.length > 0 ? numbers : undefined;
+}
+
+/**
  * Read a `returnAll` / `limit` pair for list operations.
  */
 export function getPaginationOptions(
