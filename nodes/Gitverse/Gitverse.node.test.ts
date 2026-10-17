@@ -73,6 +73,7 @@ describe('Gitverse node', () => {
 			'issue',
 			'label',
 			'organization',
+			'project',
 			'pullRequest',
 			'release',
 			'repository',
@@ -343,6 +344,32 @@ describe('Gitverse node', () => {
 		expect(findProperty('team')).toBeDefined();
 		expect(findProperty('teamName')).toBeDefined();
 		expect(findProperty('canCreateOrgRepo')).toBeDefined();
+	});
+
+	it('should expose the documented project operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const projectOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('project'))
+			.map((option) => option.value);
+
+		expect([...projectOperations].sort()).toEqual([
+			'create',
+			'createColumn',
+			'delete',
+			'deleteColumn',
+			'get',
+			'getAll',
+			'update',
+			'updateColumn',
+		]);
+	});
+
+	it('should have project fields', () => {
+		expect(findProperty('projectId')).toBeDefined();
+		expect(findProperty('columnId')).toBeDefined();
+		expect(findProperty('projectTitle')).toBeDefined();
+		expect(findProperty('templateType')).toBeDefined();
+		expect(findProperty('columnFields')).toBeDefined();
 	});
 
 	it('should register the list search methods', () => {

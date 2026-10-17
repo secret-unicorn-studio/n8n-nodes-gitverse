@@ -13,6 +13,7 @@ import * as hook from './actions/hook.operations';
 import * as issue from './actions/issue.operations';
 import * as label from './actions/label.operations';
 import * as organization from './actions/organization.operations';
+import * as project from './actions/project.operations';
 import * as pullRequest from './actions/pullRequest.operations';
 import * as release from './actions/release.operations';
 import * as repository from './actions/repository.operations';
@@ -109,6 +110,16 @@ export const operations: Record<string, ResourceOperations> = {
 		createReview: pullRequest.createPullRequestReview,
 		submitReview: pullRequest.submitPullRequestReview,
 		deleteReview: pullRequest.deletePullRequestReview,
+	},
+	project: {
+		get: project.getProject,
+		getAll: project.getManyProjects,
+		create: project.createProject,
+		update: project.updateProject,
+		delete: project.deleteProject,
+		createColumn: project.createProjectColumn,
+		updateColumn: project.updateProjectColumn,
+		deleteColumn: project.deleteProjectColumn,
 	},
 	release: {
 		get: release.getRelease,

@@ -158,6 +158,39 @@ describe('issue operations', () => {
 			expect(api.patch).toHaveBeenCalledWith(`${BASE}/issues/4`, { labels: [] });
 		});
 
+		it('should move the issue between projects and columns', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueNumber: 4,
+					updateFields: { projectId: 42, projectStatusId: 7 },
+				},
+			});
+			api.patch.mockResolvedValue({ data: {} });
+
+			await issue.updateIssue.call(ctx, api as any, 0);
+
+			expect(api.patch).toHaveBeenCalledWith(`${BASE}/issues/4`, {
+				project_id: 42,
+				project_status_id: 7,
+			});
+		});
+
+		it('should remove the issue from its project', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueNumber: 4,
+					updateFields: { removeFromProject: true, projectId: 42 },
+				},
+			});
+			api.patch.mockResolvedValue({ data: {} });
+
+			await issue.updateIssue.call(ctx, api as any, 0);
+
+			expect(api.patch).toHaveBeenCalledWith(`${BASE}/issues/4`, { project_id: null });
+		});
+
 		it('should send an empty body when no field is set', async () => {
 			const ctx = createContext({
 				params: { repository: repositoryLocator, issueNumber: 4, updateFields: {} },
@@ -634,6 +667,26 @@ describe('issue 2.0 operations', () => {
 			await issue.createIssue.call(ctx, api as any, 0);
 
 			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues`, { title: 'Minimal' });
+		});
+
+		it('should POST the issue into a project', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					createTitle: 'Planned',
+					createProjectId: 42,
+					createProjectStatusId: 7,
+				},
+			});
+			api.post.mockResolvedValue({ data: {} });
+
+			await issue.createIssue.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues`, {
+				title: 'Planned',
+				project_id: 42,
+				project_status_id: 7,
+			});
 		});
 
 		it('should require the title', async () => {

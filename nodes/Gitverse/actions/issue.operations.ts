@@ -107,6 +107,15 @@ export async function updateIssue(
 			.map((value) => value.trim())
 			.filter((value) => value !== '');
 	}
+	// `project_id: null` moves the issue back to the project backlog.
+	if ('removeFromProject' in fields && fields.removeFromProject === true) {
+		body.project_id = null;
+	} else if ('projectId' in fields && Number(fields.projectId) > 0) {
+		body.project_id = Number(fields.projectId);
+	}
+	if ('projectStatusId' in fields && Number(fields.projectStatusId) > 0) {
+		body.project_status_id = Number(fields.projectStatusId);
+	}
 
 	const response = await api.patch(`${issuesPath(owner, repo)}/${issueNumber}`, body);
 
@@ -423,6 +432,14 @@ export async function createIssue(
 	const dueDate = getOptionalString(this, itemIndex, 'createDueDate');
 
 	if (dueDate) body.due_date = dueDate;
+
+	const projectId = this.getNodeParameter('createProjectId', itemIndex, 0) as number;
+
+	if (projectId > 0) body.project_id = projectId;
+
+	const projectStatusId = this.getNodeParameter('createProjectStatusId', itemIndex, 0) as number;
+
+	if (projectStatusId > 0) body.project_status_id = projectStatusId;
 
 	const response = await api.post(issuesPath(owner, repo), body);
 

@@ -421,6 +421,29 @@ export const issueFields: INodeProperties[] = [
 				description: 'Comma-separated label names. Leave empty to remove every label.',
 			},
 			{
+				displayName: 'Project ID',
+				name: 'projectId',
+				type: 'number',
+				default: 0,
+				description: 'Move the issue into this project, leave 0 to keep the current one',
+			},
+			{
+				displayName: 'Project Status ID',
+				name: 'projectStatusId',
+				type: 'number',
+				default: 0,
+				description:
+					'Move the issue into this column of the project. Requires Project ID for a project other than the current one.',
+			},
+			{
+				displayName: 'Remove From Project',
+				name: 'removeFromProject',
+				type: 'boolean',
+				default: false,
+				description:
+					'Whether to move the issue out of its project. Overrides Project ID and Project Status ID.',
+			},
+			{
 				displayName: 'State',
 				name: 'state',
 				type: 'options',
@@ -578,6 +601,22 @@ export const issueFields: INodeProperties[] = [
 		default: '',
 		placeholder: '2026-12-31T23:59:59Z',
 		description: 'Due date of the issue as an RFC 3339 timestamp',
+		displayOptions: { show: { resource: [resource], operation: ['create'] } },
+	},
+	{
+		displayName: 'Project ID',
+		name: 'createProjectId',
+		type: 'number',
+		default: 0,
+		description: 'Project the new issue is added to, leave 0 to keep it out of every project',
+		displayOptions: { show: { resource: [resource], operation: ['create'] } },
+	},
+	{
+		displayName: 'Project Status ID',
+		name: 'createProjectStatusId',
+		type: 'number',
+		default: 0,
+		description: 'Column of the project the new issue is placed in',
 		displayOptions: { show: { resource: [resource], operation: ['create'] } },
 	},
 

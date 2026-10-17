@@ -143,6 +143,7 @@ describe('Gitverse.node.execute', () => {
 			'issue',
 			'label',
 			'organization',
+			'project',
 			'pullRequest',
 			'release',
 			'repository',

@@ -84,6 +84,18 @@ Observed against the live API while building the issue and label operations:
   not. Teams are addressed by slug, and `PUT /orgs/{org}/teams/{team}/repos/{owner}/{repo}`
   grants access with `read`, `write` or `admin`.
 
+### Project specifics
+
+- The project endpoints are the best covered part of the API: every one of them was executed
+  against the live API.
+- `GET /projects` is **not** paginated, it always returns the whole list.
+- `template_type: 1` creates the five standard Kanban columns, anything else starts empty.
+- Column colours are `#RRGGBB` — note the hash, unlike labels, which are stored without it.
+- Moving a task between projects and columns happens through the issue update: `project_id` and
+  `project_status_id` select the target, `project_id: null` moves the task back to the backlog.
+  The same two fields on issue creation put a new task straight into a project. Linking works
+  even for a pull-request-backed issue.
+
 ### Release specifics
 
 - On a repository without releases, `GET /releases` answers `404 REPO_NOT_FOUND` instead of an
@@ -126,6 +138,7 @@ Observed against the live API while building the issue and label operations:
 - **User** — Get the current user, get by login or account ID, list/add/remove emails, search
 - **Organization** — List teams, create a team, team members, team repositories, sign team
   access to a repository, organization members, issue types
+- **Project** — Get, list, create, update, delete, plus project columns (create, update, delete)
 - **Webhook** — Trigger node receiving the Gitverse webhook deliveries
 
 Repository and branch fields are searchable pickers: select from a list, paste a repository URL,
@@ -195,6 +208,7 @@ Main node for all Gitverse API operations.
 | Hook | Get, Get Many, Create, Update, Delete |
 | User | Get, Get by Login, Get by ID, Get Emails, Add Emails, Delete Emails, Search |
 | Organization | Get Many Teams, Create Team, Get Team Members, Get Member, Get Team Repositories, Set Team Repository, Get Issue Types |
+| Project | Get, Get Many, Create, Update, Delete, Create Column, Update Column, Delete Column |
 
 ### Gitverse Webhook
 
