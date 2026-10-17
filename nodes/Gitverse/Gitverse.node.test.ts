@@ -66,6 +66,7 @@ describe('Gitverse node', () => {
 		const values = resourceProp.options.map((o: any) => o.value);
 
 		expect(values).toEqual([
+			'assignment',
 			'branch',
 			'commit',
 			'file',
@@ -73,10 +74,12 @@ describe('Gitverse node', () => {
 			'issue',
 			'label',
 			'organization',
+			'package',
 			'project',
 			'pullRequest',
 			'release',
 			'repository',
+			'star',
 			'user',
 		]);
 	});
@@ -370,6 +373,41 @@ describe('Gitverse node', () => {
 		expect(findProperty('projectTitle')).toBeDefined();
 		expect(findProperty('templateType')).toBeDefined();
 		expect(findProperty('columnFields')).toBeDefined();
+	});
+
+	it('should expose the documented star, package and assignment operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const valuesFor = (resource: string) =>
+			options
+				.filter((option) => option.displayOptions.show.resource.includes(resource))
+				.map((option) => option.value)
+				.sort();
+
+		expect(valuesFor('star')).toEqual(['add', 'check', 'getAll', 'remove']);
+		expect(valuesFor('package')).toEqual(['delete', 'deleteVersion', 'getVersions']);
+		expect(valuesFor('assignment')).toEqual(['get']);
+	});
+
+	it('should expose the git database and migration operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const repositoryOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('repository'))
+			.map((option) => option.value);
+
+		for (const value of [
+			'getTree',
+			'getRef',
+			'getMatchingRefs',
+			'createRef',
+			'deleteRef',
+			'createTree',
+			'createCommit',
+			'setCollaboratorPermission',
+			'migrate',
+			'getMigrationStatus',
+		]) {
+			expect(repositoryOperations).toContain(value);
+		}
 	});
 
 	it('should register the list search methods', () => {

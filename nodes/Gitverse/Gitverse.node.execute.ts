@@ -6,6 +6,7 @@ import {
 import { AxiosInstance } from 'axios';
 
 import { createApiClient, GitverseApiOptions } from '../../utils/api';
+import * as assignment from './actions/assignment.operations';
 import * as branch from './actions/branch.operations';
 import * as commit from './actions/commit.operations';
 import * as file from './actions/file.operations';
@@ -13,10 +14,12 @@ import * as hook from './actions/hook.operations';
 import * as issue from './actions/issue.operations';
 import * as label from './actions/label.operations';
 import * as organization from './actions/organization.operations';
+import * as pkg from './actions/package.operations';
 import * as project from './actions/project.operations';
 import * as pullRequest from './actions/pullRequest.operations';
 import * as release from './actions/release.operations';
 import * as repository from './actions/repository.operations';
+import * as star from './actions/star.operations';
 import * as user from './actions/user.operations';
 import { toJsonRecord } from './utils/params';
 
@@ -29,6 +32,9 @@ export type OperationFunction = (
 type ResourceOperations = Record<string, OperationFunction>;
 
 export const operations: Record<string, ResourceOperations> = {
+	assignment: {
+		get: assignment.getAssignment,
+	},
 	branch: {
 		get: branch.getBranch,
 		getAll: branch.getManyBranches,
@@ -111,6 +117,11 @@ export const operations: Record<string, ResourceOperations> = {
 		submitReview: pullRequest.submitPullRequestReview,
 		deleteReview: pullRequest.deletePullRequestReview,
 	},
+	package: {
+		getVersions: pkg.getPackageVersions,
+		deleteVersion: pkg.deletePackageVersion,
+		delete: pkg.deletePackage,
+	},
 	project: {
 		get: project.getProject,
 		getAll: project.getManyProjects,
@@ -143,6 +154,22 @@ export const operations: Record<string, ResourceOperations> = {
 		addCollaborator: repository.addCollaborator,
 		getLanguages: repository.getLanguages,
 		fork: repository.forkRepository,
+		getTree: repository.getTree,
+		getRef: repository.getRef,
+		getMatchingRefs: repository.getMatchingRefs,
+		createRef: repository.createRef,
+		deleteRef: repository.deleteRef,
+		createTree: repository.createTree,
+		createCommit: repository.createCommit,
+		setCollaboratorPermission: repository.setCollaboratorPermission,
+		migrate: repository.migrateRepository,
+		getMigrationStatus: repository.getMigrationStatus,
+	},
+	star: {
+		getAll: star.getManyStars,
+		check: star.checkStar,
+		add: star.addStar,
+		remove: star.removeStar,
 	},
 	user: {
 		get: user.getUser,

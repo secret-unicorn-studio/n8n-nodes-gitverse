@@ -136,6 +136,7 @@ describe('Gitverse.node.execute', () => {
 
 	it('should expose an operation for every advertised resource', () => {
 		expect(Object.keys(operations).sort()).toEqual([
+			'assignment',
 			'branch',
 			'commit',
 			'file',
@@ -143,10 +144,12 @@ describe('Gitverse.node.execute', () => {
 			'issue',
 			'label',
 			'organization',
+			'package',
 			'project',
 			'pullRequest',
 			'release',
 			'repository',
+			'star',
 			'user',
 		]);
 	});

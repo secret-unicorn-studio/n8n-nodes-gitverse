@@ -96,6 +96,25 @@ Observed against the live API while building the issue and label operations:
   The same two fields on issue creation put a new task straight into a project. Linking works
   even for a pull-request-backed issue.
 
+### Star, package, git database and migration specifics
+
+- `GET /user/starred/{owner}/{repo}` answers `404` when the repository is not starred instead of
+  a boolean, so the node translates that into `{ "starred": false }`. Starring is idempotent and
+  was verified end to end.
+- The package endpoints exist twice, under `/users/{username}/...` and under `/orgs/{org}/...`.
+  The node exposes a single set of operations with an **Owner Type** switch instead of six
+  operations. The type of a package is free text — the documentation only ever shows `npm`.
+- `GET /git/trees/{sha}` accepts a branch name or a commit SHA, but **not** a ref such as
+  `heads/main`, which is rejected with `400`. Trees and commits created by the node are dangling
+  objects until a ref points at them, which is why they were safe to create in the tests.
+- `GET /repos/{o}/{r}/migration/status` answers `200` even for a repository that was never
+  migrated. `POST /repos/migrate` was only probed with an unusable source, so its happy path is
+  unverified — it would create a repository.
+- `PUT /repos/{o}/{r}/collaborators/{username}` answers `422` for the repository owner, so it
+  needs a second account to be verified. The same call grants `read`, `write` or `admin`.
+- `GET /assignments/{id}` (Smartclass) is implemented from the documentation alone; the test
+  account has no assignments.
+
 ### Release specifics
 
 - On a repository without releases, `GET /releases` answers `404 REPO_NOT_FOUND` instead of an
@@ -139,6 +158,11 @@ Observed against the live API while building the issue and label operations:
 - **Organization** — List teams, create a team, team members, team repositories, sign team
   access to a repository, organization members, issue types
 - **Project** — Get, list, create, update, delete, plus project columns (create, update, delete)
+- **Star** — Check, add, remove and list the starred repositories
+- **Package** — List versions, delete a version, delete a package (user or organization)
+- **Assignment** — Get a Smartclass assignment
+- **Repository git data** — Read a tree and refs, create and delete refs, create trees and
+  commits, migrate a repository, change a collaborator permission
 - **Webhook** — Trigger node receiving the Gitverse webhook deliveries
 
 Repository and branch fields are searchable pickers: select from a list, paste a repository URL,
@@ -197,7 +221,7 @@ Main node for all Gitverse API operations.
 
 | Resource | Operations |
 |----------|------------|
-| Repository | Get, Get Many, Create, Update, Delete, Fork, Get Languages, Get Collaborators, Add Collaborator |
+| Repository | Get, Get Many, Create, Update, Delete, Fork, Get Languages, Get Collaborators, Add Collaborator, Set Collaborator Permission, Get Tree, Get Ref, Get Matching Refs, Create Ref, Delete Ref, Create Tree, Create Commit, Migrate, Get Migration Status |
 | Branch | Get, Get Many, Create, Delete |
 | File | Get, Create or Update, Delete |
 | Commit | Get, Get Many, Compare |
@@ -209,6 +233,9 @@ Main node for all Gitverse API operations.
 | User | Get, Get by Login, Get by ID, Get Emails, Add Emails, Delete Emails, Search |
 | Organization | Get Many Teams, Create Team, Get Team Members, Get Member, Get Team Repositories, Set Team Repository, Get Issue Types |
 | Project | Get, Get Many, Create, Update, Delete, Create Column, Update Column, Delete Column |
+| Star | Check, Add, Remove, Get Many |
+| Package | Get Versions, Delete Version, Delete |
+| Assignment | Get |
 
 ### Gitverse Webhook
 
