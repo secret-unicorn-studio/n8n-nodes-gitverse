@@ -1,8 +1,9 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
 import { AxiosInstance } from 'axios';
 
 import { fetchPages } from '../../../utils/api';
 import {
+	getNumberList,
 	getOptionalString,
 	getPaginationOptions,
 	getRepositoryRef,
@@ -384,6 +385,389 @@ export async function deleteIssueCommentAttachment(
 	const response = await api.delete(
 		`${issuesPath(owner, repo)}/comments/${commentId}/attachments/${attachmentId}`
 	);
+
+	return response.data ?? { success: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* Issues 2.0: creation, labels, attachments, sub-issues, development */
+/* ------------------------------------------------------------------ */
+
+export async function createIssue(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+
+	const body: Record<string, unknown> = {
+		title: getRequiredString(this, itemIndex, 'createTitle', 'Issue title is required'),
+	};
+
+	const issueBody = getOptionalString(this, itemIndex, 'createBody');
+
+	if (issueBody) body.body = issueBody;
+
+	const type = getOptionalString(this, itemIndex, 'createType');
+
+	if (type) body.type = type;
+
+	const labels = getStringList(this, itemIndex, 'createLabels');
+
+	if (labels) body.labels = labels;
+
+	const assignees = getStringList(this, itemIndex, 'createAssignees');
+
+	if (assignees) body.assignees = assignees;
+
+	const dueDate = getOptionalString(this, itemIndex, 'createDueDate');
+
+	if (dueDate) body.due_date = dueDate;
+
+	const response = await api.post(issuesPath(owner, repo), body);
+
+	return response.data;
+}
+
+export async function getIssueLabels(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>[]> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+
+	const response = await api.get(`${issuesPath(owner, repo)}/${issueNumber}/labels`);
+
+	return response.data;
+}
+
+export async function addIssueAttachment(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>[]> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+	const propertyName = getOptionalString(this, itemIndex, 'binaryProperty', 'data');
+
+	const binary = this.helpers.assertBinaryData(itemIndex, propertyName);
+	const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, propertyName);
+
+	const form = new (globalThis as any).FormData();
+	const Blob = (globalThis as any).Blob;
+	const part = binary.mimeType ? new Blob([buffer], { type: binary.mimeType }) : new Blob([buffer]);
+
+	form.append('attachment', part, binary.fileName ?? `attachment-${issueNumber}`);
+
+	const response = await api.post(
+		`${issuesPath(owner, repo)}/${issueNumber}/attachments`,
+		form
+	);
+
+	return response.data;
+}
+
+export async function deleteIssueAttachment(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+	const attachmentId = getRequiredNumber(
+		this,
+		itemIndex,
+		'attachmentId',
+		'Attachment ID is required'
+	);
+
+	const response = await api.delete(
+		`${issuesPath(owner, repo)}/${issueNumber}/attachments/${attachmentId}`
+	);
+
+	return response.data ?? { success: true };
+}
+
+export async function getIssueParent(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+
+	const response = await api.get(`${issuesPath(owner, repo)}/${issueNumber}/parent`);
+
+	return response.data;
+}
+
+export async function getSubIssues(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>[]> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+	const pagination = getPaginationOptions(this, itemIndex);
+
+	return fetchPages<Record<string, any>>(
+		api,
+		`${issuesPath(owner, repo)}/${issueNumber}/sub_issues`,
+		pagination
+	);
+}
+
+export async function addSubIssue(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+	const subIssueId = getRequiredNumber(
+		this,
+		itemIndex,
+		'subIssueId',
+		'Sub-issue number is required'
+	);
+
+	const body: Record<string, unknown> = { sub_issue_id: subIssueId };
+
+	if (this.getNodeParameter('replaceParent', itemIndex, false) === true) {
+		body.replace_parent = true;
+	}
+
+	const response = await api.post(
+		`${issuesPath(owner, repo)}/${issueNumber}/sub_issues`,
+		body
+	);
+
+	return response.data;
+}
+
+export async function removeSubIssue(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+	const subIssueId = getRequiredNumber(
+		this,
+		itemIndex,
+		'subIssueId',
+		'Sub-issue number is required'
+	);
+
+	const response = await api.delete(`${issuesPath(owner, repo)}/${issueNumber}/sub_issues`, {
+		params: { sub_issue_id: subIssueId },
+	});
+
+	return response.data ?? { success: true };
+}
+
+/**
+ * Read the `pulls` and `branches` collections into the shape the development
+ * endpoint expects.
+ */
+function readDevelopmentLinks(
+	ctx: IExecuteFunctions,
+	itemIndex: number
+): Record<string, unknown> {
+	const readValues = (name: string): any[] => {
+		const value = ctx.getNodeParameter(name, itemIndex, {}) as { values?: any[] };
+
+		return Array.isArray(value?.values) ? value.values : [];
+	};
+
+	const withRepository = (
+		entry: Record<string, unknown>,
+		source: Record<string, unknown>
+	): Record<string, unknown> => {
+		if (source.ownerName) entry.owner_name = source.ownerName;
+		if (source.repoName) entry.repo_name = source.repoName;
+
+		return entry;
+	};
+
+	return {
+		pulls: readValues('pulls').map((pull) =>
+			withRepository({ number: Number(pull.number) }, pull)
+		),
+		branches: readValues('branches').map((branch) =>
+			withRepository({ name: String(branch.name ?? '') }, branch)
+		),
+	};
+}
+
+export async function getIssueDevelopment(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+
+	const response = await api.get(`${issuesPath(owner, repo)}/${issueNumber}/development`);
+
+	return response.data;
+}
+
+export async function linkIssueDevelopment(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+
+	const response = await api.post(
+		`${issuesPath(owner, repo)}/${issueNumber}/development`,
+		readDevelopmentLinks(this, itemIndex)
+	);
+
+	return response.data;
+}
+
+export async function unlinkIssueDevelopment(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+
+	const response = await api.delete(
+		`${issuesPath(owner, repo)}/${issueNumber}/development`,
+		{ data: readDevelopmentLinks(this, itemIndex) }
+	);
+
+	return response.data ?? { success: true };
+}
+
+export async function addIssueReaction(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueNumber = getRequiredNumber(
+		this,
+		itemIndex,
+		'issueNumber',
+		'Issue number is required'
+	);
+	const content = getRequiredString(this, itemIndex, 'reaction', 'Reaction is required');
+
+	const response = await api.post(`${issuesPath(owner, repo)}/${issueNumber}/reactions`, {
+		content,
+	});
+
+	return response.data;
+}
+
+/**
+ * Read the numeric issue IDs of the bulk operations.
+ */
+function readIssueIds(
+	ctx: IExecuteFunctions,
+	itemIndex: number,
+	name: string
+): number[] | undefined {
+	return getNumberList(ctx, itemIndex, name);
+}
+
+export async function getIssueBulkValues(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueIds = readIssueIds(this, itemIndex, 'issueIds') ?? [];
+
+	if (issueIds.length === 0) {
+		throw new NodeOperationError(this.getNode(), 'Issue IDs are required', { itemIndex });
+	}
+
+	const data: Record<string, unknown> = { issue_ids: issueIds };
+	const excluded = readIssueIds(this, itemIndex, 'excludeIssueIds');
+
+	if (excluded) data.exclude_issue_ids = excluded;
+
+	const response = await api.post(`${issuesPath(owner, repo)}/bulk/values`, { data });
+
+	return response.data;
+}
+
+export async function bulkDeleteIssues(
+	this: IExecuteFunctions,
+	api: AxiosInstance,
+	itemIndex: number
+): Promise<Record<string, any>> {
+	const { owner, repo } = getRepositoryRef(this, itemIndex);
+	const issueIds = readIssueIds(this, itemIndex, 'issueIds') ?? [];
+
+	if (issueIds.length === 0) {
+		throw new NodeOperationError(this.getNode(), 'Issue IDs are required', { itemIndex });
+	}
+
+	const body: Record<string, unknown> = { data: issueIds };
+	const excluded = readIssueIds(this, itemIndex, 'excludeIssueIds');
+
+	if (excluded) body.exclude_issue_ids = excluded;
+
+	const response = await api.delete(`${issuesPath(owner, repo)}/bulk/delete`, { data: body });
 
 	return response.data ?? { success: true };
 }

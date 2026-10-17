@@ -585,3 +585,453 @@ describe('issue operations', () => {
 		});
 	});
 });
+
+/* ------------------------------------------------------------------ */
+/* Issues 2.0                                                          */
+/* ------------------------------------------------------------------ */
+
+describe('issue 2.0 operations', () => {
+	let api: ReturnType<typeof createApi>;
+
+	beforeEach(() => {
+		api = createApi();
+	});
+
+	describe('createIssue', () => {
+		it('should POST every provided field', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					createTitle: 'Bug in auth',
+					createBody: 'Steps to reproduce',
+					createType: 'bug',
+					createLabels: 'critical, auth',
+					createAssignees: 'alice, bob',
+					createDueDate: '2026-12-31T23:59:59Z',
+				},
+			});
+			api.post.mockResolvedValue({ data: { number: 7 } });
+
+			const result = await issue.createIssue.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues`, {
+				title: 'Bug in auth',
+				body: 'Steps to reproduce',
+				type: 'bug',
+				labels: ['critical', 'auth'],
+				assignees: ['alice', 'bob'],
+				due_date: '2026-12-31T23:59:59Z',
+			});
+			expect(result).toEqual({ number: 7 });
+		});
+
+		it('should send the title alone', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, createTitle: 'Minimal' },
+			});
+			api.post.mockResolvedValue({ data: {} });
+
+			await issue.createIssue.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues`, { title: 'Minimal' });
+		});
+
+		it('should require the title', async () => {
+			const ctx = createContext({ params: { repository: repositoryLocator } });
+
+			await expect(issue.createIssue.call(ctx, api as any, 0)).rejects.toThrow(
+				'Issue title is required'
+			);
+		});
+	});
+
+	describe('getIssueLabels', () => {
+		it('should list the labels of an issue', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+			});
+			api.get.mockResolvedValue({ data: [{ name: 'bug' }] });
+
+			const result = await issue.getIssueLabels.call(ctx, api as any, 0);
+
+			expect(api.get).toHaveBeenCalledWith(`${BASE}/issues/6/labels`);
+			expect(result).toEqual([{ name: 'bug' }]);
+		});
+
+		it('should require the issue number', async () => {
+			const ctx = createContext({ params: { repository: repositoryLocator } });
+
+			await expect(issue.getIssueLabels.call(ctx, api as any, 0)).rejects.toThrow(
+				'Issue number is required'
+			);
+		});
+	});
+
+	describe('addIssueAttachment', () => {
+		it('should POST the file as multipart data', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+				binary: {
+					data: {
+						data: Buffer.from('log'),
+						fileName: 'error.log',
+						mimeType: 'text/plain',
+					},
+				},
+			});
+			api.post.mockResolvedValue({ data: [{ id: 55 }] });
+
+			const result = await issue.addIssueAttachment.call(ctx, api as any, 0);
+			const [url, form] = api.post.mock.calls[0];
+			const file = (form as any).get('attachment');
+
+			expect(url).toBe(`${BASE}/issues/6/attachments`);
+			expect(file.name).toBe('error.log');
+			expect(file.type).toBe('text/plain');
+			expect(result).toEqual([{ id: 55 }]);
+		});
+
+		it('should fall back to a generated file name', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+				binary: { data: { data: Buffer.from('log') } },
+			});
+			api.post.mockResolvedValue({ data: [] });
+
+			await issue.addIssueAttachment.call(ctx, api as any, 0);
+
+			const form = api.post.mock.calls[0][1];
+
+			expect((form as any).get('attachment').name).toBe('attachment-6');
+		});
+	});
+
+	describe('deleteIssueAttachment', () => {
+		it('should DELETE the attachment', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6, attachmentId: 55 },
+			});
+			api.delete.mockResolvedValue({ data: { ok: true } });
+
+			await issue.deleteIssueAttachment.call(ctx, api as any, 0);
+
+			expect(api.delete).toHaveBeenCalledWith(`${BASE}/issues/6/attachments/55`);
+		});
+
+		it('should fall back to a success marker', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6, attachmentId: 55 },
+			});
+			api.delete.mockResolvedValue({ data: null });
+
+			expect(await issue.deleteIssueAttachment.call(ctx, api as any, 0)).toEqual({
+				success: true,
+			});
+		});
+
+		it('should require an attachment ID', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+			});
+
+			await expect(issue.deleteIssueAttachment.call(ctx, api as any, 0)).rejects.toThrow(
+				'Attachment ID is required'
+			);
+		});
+	});
+
+	describe('getIssueParent', () => {
+		it('should GET the parent issue', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+			});
+			api.get.mockResolvedValue({ data: { number: 3 } });
+
+			const result = await issue.getIssueParent.call(ctx, api as any, 0);
+
+			expect(api.get).toHaveBeenCalledWith(`${BASE}/issues/6/parent`);
+			expect(result).toEqual({ number: 3 });
+		});
+	});
+
+	describe('getSubIssues', () => {
+		it('should list the sub-issues with pagination', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueNumber: 6,
+					returnAll: false,
+					limit: 2,
+				},
+			});
+			api.get.mockResolvedValue({ data: [{ number: 7 }] });
+
+			const result = await issue.getSubIssues.call(ctx, api as any, 0);
+
+			expect(api.get).toHaveBeenCalledWith(`${BASE}/issues/6/sub_issues`, {
+				params: { page: 1, per_page: 2 },
+			});
+			expect(result).toEqual([{ number: 7 }]);
+		});
+	});
+
+	describe('addSubIssue', () => {
+		it('should POST the child issue', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueNumber: 6,
+					subIssueId: 7,
+					replaceParent: true,
+				},
+			});
+			api.post.mockResolvedValue({ data: { number: 6 } });
+
+			await issue.addSubIssue.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues/6/sub_issues`, {
+				sub_issue_id: 7,
+				replace_parent: true,
+			});
+		});
+
+		it('should omit replace_parent by default', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6, subIssueId: 7 },
+			});
+			api.post.mockResolvedValue({ data: {} });
+
+			await issue.addSubIssue.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues/6/sub_issues`, { sub_issue_id: 7 });
+		});
+
+		it('should require the child number', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+			});
+
+			await expect(issue.addSubIssue.call(ctx, api as any, 0)).rejects.toThrow(
+				'Sub-issue number is required'
+			);
+		});
+	});
+
+	describe('removeSubIssue', () => {
+		it('should DELETE the link with the child number as a query', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6, subIssueId: 7 },
+			});
+			api.delete.mockResolvedValue({ data: { ok: true } });
+
+			await issue.removeSubIssue.call(ctx, api as any, 0);
+
+			expect(api.delete).toHaveBeenCalledWith(`${BASE}/issues/6/sub_issues`, {
+				params: { sub_issue_id: 7 },
+			});
+		});
+
+		it('should fall back to a success marker', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6, subIssueId: 7 },
+			});
+			api.delete.mockResolvedValue({ data: null });
+
+			expect(await issue.removeSubIssue.call(ctx, api as any, 0)).toEqual({
+				success: true,
+			});
+		});
+	});
+
+	describe('getIssueDevelopment', () => {
+		it('should GET the development links', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+			});
+			api.get.mockResolvedValue({ data: { pulls: [], branches: [] } });
+
+			const result = await issue.getIssueDevelopment.call(ctx, api as any, 0);
+
+			expect(api.get).toHaveBeenCalledWith(`${BASE}/issues/6/development`);
+			expect(result).toEqual({ pulls: [], branches: [] });
+		});
+	});
+
+	describe('linkIssueDevelopment', () => {
+		it('should POST the pull requests and the branches', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueNumber: 6,
+					pulls: { values: [{ number: 4, ownerName: 'other', repoName: 'fork' }] },
+					branches: { values: [{ name: 'feature' }, { name: 'main', ownerName: 'o' }] },
+				},
+			});
+			api.post.mockResolvedValue({ data: { pulls: [], branches: [] } });
+
+			await issue.linkIssueDevelopment.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues/6/development`, {
+				pulls: [{ number: 4, owner_name: 'other', repo_name: 'fork' }],
+				branches: [{ name: 'feature' }, { name: 'main', owner_name: 'o' }],
+			});
+		});
+
+		it('should send empty lists when nothing is configured', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueNumber: 6,
+					pulls: null,
+					branches: { values: [{ ownerName: 'o' }] },
+				},
+			});
+			api.post.mockResolvedValue({ data: {} });
+
+			await issue.linkIssueDevelopment.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues/6/development`, {
+				pulls: [],
+				branches: [{ name: '', owner_name: 'o' }],
+			});
+		});
+	});
+
+	describe('unlinkIssueDevelopment', () => {
+		it('should DELETE the links through the body', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueNumber: 6,
+					pulls: { values: [{ number: 4 }] },
+					branches: { values: [{ name: 'feature' }] },
+				},
+			});
+			api.delete.mockResolvedValue({ data: { ok: true } });
+
+			await issue.unlinkIssueDevelopment.call(ctx, api as any, 0);
+
+			expect(api.delete).toHaveBeenCalledWith(`${BASE}/issues/6/development`, {
+				data: {
+					pulls: [{ number: 4 }],
+					branches: [{ name: 'feature' }],
+				},
+			});
+		});
+
+		it('should fall back to a success marker', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+			});
+			api.delete.mockResolvedValue({ data: null });
+
+			expect(await issue.unlinkIssueDevelopment.call(ctx, api as any, 0)).toEqual({
+				success: true,
+			});
+		});
+	});
+
+	describe('addIssueReaction', () => {
+		it('should POST the reaction', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6, reaction: 'rocket' },
+			});
+			api.post.mockResolvedValue({ data: { id: 9 } });
+
+			const result = await issue.addIssueReaction.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues/6/reactions`, { content: 'rocket' });
+			expect(result).toEqual({ id: 9 });
+		});
+
+		it('should require the reaction', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueNumber: 6 },
+			});
+
+			await expect(issue.addIssueReaction.call(ctx, api as any, 0)).rejects.toThrow(
+				'Reaction is required'
+			);
+		});
+	});
+
+	describe('getIssueBulkValues', () => {
+		it('should POST the selection with the exclusions', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueIds: '12, 18',
+					excludeIssueIds: '18',
+				},
+			});
+			api.post.mockResolvedValue({ data: { values: [] } });
+
+			await issue.getIssueBulkValues.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues/bulk/values`, {
+				data: { issue_ids: [12, 18], exclude_issue_ids: [18] },
+			});
+		});
+
+		it('should omit the exclusions when they are empty', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueIds: '12' },
+			});
+			api.post.mockResolvedValue({ data: {} });
+
+			await issue.getIssueBulkValues.call(ctx, api as any, 0);
+
+			expect(api.post).toHaveBeenCalledWith(`${BASE}/issues/bulk/values`, {
+				data: { issue_ids: [12] },
+			});
+		});
+
+		it('should require at least one ID', async () => {
+			const ctx = createContext({ params: { repository: repositoryLocator } });
+
+			await expect(issue.getIssueBulkValues.call(ctx, api as any, 0)).rejects.toThrow(
+				'Issue IDs are required'
+			);
+		});
+	});
+
+	describe('bulkDeleteIssues', () => {
+		it('should DELETE the selection through the body', async () => {
+			const ctx = createContext({
+				params: {
+					repository: repositoryLocator,
+					issueIds: '12,18',
+					excludeIssueIds: '18',
+				},
+			});
+			api.delete.mockResolvedValue({ data: { ok: true } });
+
+			const result = await issue.bulkDeleteIssues.call(ctx, api as any, 0);
+
+			expect(api.delete).toHaveBeenCalledWith(`${BASE}/issues/bulk/delete`, {
+				data: { data: [12, 18], exclude_issue_ids: [18] },
+			});
+			expect(result).toEqual({ ok: true });
+		});
+
+		it('should omit the exclusions and fall back to a success marker', async () => {
+			const ctx = createContext({
+				params: { repository: repositoryLocator, issueIds: '12' },
+			});
+			api.delete.mockResolvedValue({ data: null });
+
+			expect(await issue.bulkDeleteIssues.call(ctx, api as any, 0)).toEqual({
+				success: true,
+			});
+			expect(api.delete.mock.calls[0][1]).toEqual({ data: { data: [12] } });
+		});
+
+		it('should require at least one ID', async () => {
+			const ctx = createContext({ params: { repository: repositoryLocator } });
+
+			await expect(issue.bulkDeleteIssues.call(ctx, api as any, 0)).rejects.toThrow(
+				'Issue IDs are required'
+			);
+		});
+	});
+});

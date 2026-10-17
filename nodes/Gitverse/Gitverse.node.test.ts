@@ -191,9 +191,16 @@ describe('Gitverse node', () => {
 			.map((option) => option.value);
 
 		expect([...issueOperations].sort()).toEqual([
+			'addAttachment',
 			'addCommentAttachment',
 			'addCommentReaction',
+			'addReaction',
+			'addSubIssue',
+			'bulkDelete',
+			'bulkValues',
+			'create',
 			'createComment',
+			'deleteAttachment',
 			'deleteComment',
 			'deleteCommentAttachment',
 			'deleteCommentReaction',
@@ -201,7 +208,14 @@ describe('Gitverse node', () => {
 			'getAll',
 			'getComment',
 			'getComments',
+			'getDevelopment',
+			'getLabels',
+			'getParent',
+			'getSubIssues',
 			'getTimeline',
+			'linkDevelopment',
+			'removeSubIssue',
+			'unlinkDevelopment',
 			'update',
 			'updateComment',
 		]);

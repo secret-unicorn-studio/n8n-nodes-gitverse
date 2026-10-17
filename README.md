@@ -59,6 +59,16 @@ Observed against the live API while building the issue and label operations:
   with an empty `422`, verified with `curl` too, so the request shape could only be checked
   locally. There is no documented endpoint for listing attachments (`GET .../attachments`
   answers `400`).
+- The "Issues 2.0" endpoints (create, sub-issues, parent, development links, reactions, bulk
+  operations) only accept real tasks. A pull-request-backed issue answers `422` to all of them.
+- Creating a task through the API is disabled for our account: `POST /issues`,
+  `POST /issues/bulk/values` and `DELETE /issues/bulk/delete` answer an empty `403` on the test
+  repository. Every route was checked and none answers `404`, but these operations could not be
+  verified end to end. The account needs the feature enabled before they can be used.
+- `DELETE /issues/{n}/sub_issues` takes `sub_issue_id` as a query parameter, while
+  `DELETE /issues/{n}/development` takes the links in the request body.
+- `POST /issues/bulk/update` is documented without a request body contract (the page only lists
+  the response codes), so it is **not** implemented.
 
 ### Release specifics
 
@@ -92,8 +102,9 @@ Observed against the live API while building the issue and label operations:
 - **Commit** — Get, list (branch and path filters), compare two references
 - **Pull Request** — Get, list, create, update, update head branch, merge status, changed
   files, commits, comments, reviews (create, list, submit, delete)
-- **Issue** — Get, list (state, assignee, type, creator, labels, sort, since), update,
-  comments (create, list, get by ID, update, delete), reactions, attachments, timeline
+- **Issue** — Get, list (state, assignee, type, creator, labels, sort, since), create, update,
+  labels, comments (create, list, get by ID, update, delete), reactions, attachments, timeline,
+  parent and sub-issues, development links, bulk values and bulk delete
 - **Label** — Get, list, create, update (rename included)
 - **Release** — Get by ID or tag, list, create, update, delete by ID or tag, list assets, upload
   an asset, delete an asset
@@ -161,7 +172,7 @@ Main node for all Gitverse API operations.
 | File | Get, Create or Update, Delete |
 | Commit | Get, Get Many, Compare |
 | Pull Request | Get, Get Many, Create, Update, Update Branch, Get Merge Status, Get Changed Files, Get Commits, Create Comment, Get Reviews, Create Review, Submit Review, Delete Review |
-| Issue | Get, Get Many, Update, Get Comments, Get Comment, Create Comment, Update Comment, Delete Comment, Add Comment Reaction, Delete Comment Reaction, Get Timeline, Add Comment Attachment, Delete Comment Attachment |
+| Issue | Get, Get Many, Create, Update, Get Labels, Get Comments, Get Comment, Create Comment, Update Comment, Delete Comment, Add Comment Reaction, Delete Comment Reaction, Get Timeline, Add Attachment, Delete Attachment, Add Comment Attachment, Delete Comment Attachment, Add Reaction, Get Parent, Get Sub-Issues, Add Sub-Issue, Remove Sub-Issue, Get Development, Link Development, Unlink Development, Get Bulk Values, Delete Many |
 | Label | Get, Get Many, Create, Update |
 | Release | Get, Get Many, Get by Tag, Create, Update, Delete, Delete by Tag, Get Assets, Upload Asset, Delete Asset |
 | Hook | Get, Get Many, Create, Update, Delete |
