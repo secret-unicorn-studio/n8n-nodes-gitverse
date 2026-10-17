@@ -332,6 +332,9 @@ The **Repository** filter is optional: leave it empty to accept every repository
 
 ## Development
 
+Node.js 22 or newer is required — n8n 2.x needs it, and one of the transitive development
+dependencies ships a native module whose prebuilt binaries target Node 22 and 24 only.
+
 ```bash
 # Install dependencies
 npm install
