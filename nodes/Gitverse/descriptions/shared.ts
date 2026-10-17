@@ -52,6 +52,7 @@ export function repositoryProperty(scope: PropertyScope): INodeProperties {
 		displayOptions: {
 			show: {
 				resource: scope.resource,
+				...(scope.operation.length > 0 ? { operation: scope.operation } : {}),
 			},
 		},
 	};

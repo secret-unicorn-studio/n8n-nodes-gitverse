@@ -70,6 +70,20 @@ Observed against the live API while building the issue and label operations:
 - `POST /issues/bulk/update` is documented without a request body contract (the page only lists
   the response codes), so it is **not** implemented.
 
+### User and organization specifics
+
+- The user endpoints are user-scoped rather than repository-scoped: the current account is
+  `GET /user`, another user is `GET /users/{login}`, and `GET /user/{account_id}` takes the
+  numeric ID. The ID is not discoverable without reading the user first.
+- `GET /search/users` works, unlike the repository search the documentation never provided.
+- Adding and removing account emails (`POST` / `DELETE /user/emails`) change the real account,
+  so they were implemented from the documentation but never executed; they accept at most ten
+  addresses per call.
+- The organization endpoints need an organization the token belongs to. Our test account has
+  none, so every call answers `ORG_NOT_FOUND` — the routes are confirmed, the happy paths are
+  not. Teams are addressed by slug, and `PUT /orgs/{org}/teams/{team}/repos/{owner}/{repo}`
+  grants access with `read`, `write` or `admin`.
+
 ### Release specifics
 
 - On a repository without releases, `GET /releases` answers `404 REPO_NOT_FOUND` instead of an
@@ -109,6 +123,9 @@ Observed against the live API while building the issue and label operations:
 - **Release** — Get by ID or tag, list, create, update, delete by ID or tag, list assets, upload
   an asset, delete an asset
 - **Hook** — Get, list, create, update (events, config, activation), delete
+- **User** — Get the current user, get by login or account ID, list/add/remove emails, search
+- **Organization** — List teams, create a team, team members, team repositories, sign team
+  access to a repository, organization members, issue types
 - **Webhook** — Trigger node receiving the Gitverse webhook deliveries
 
 Repository and branch fields are searchable pickers: select from a list, paste a repository URL,
@@ -176,6 +193,8 @@ Main node for all Gitverse API operations.
 | Label | Get, Get Many, Create, Update |
 | Release | Get, Get Many, Get by Tag, Create, Update, Delete, Delete by Tag, Get Assets, Upload Asset, Delete Asset |
 | Hook | Get, Get Many, Create, Update, Delete |
+| User | Get, Get by Login, Get by ID, Get Emails, Add Emails, Delete Emails, Search |
+| Organization | Get Many Teams, Create Team, Get Team Members, Get Member, Get Team Repositories, Set Team Repository, Get Issue Types |
 
 ### Gitverse Webhook
 

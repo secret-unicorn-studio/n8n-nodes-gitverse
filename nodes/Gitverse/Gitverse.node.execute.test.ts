@@ -142,9 +142,11 @@ describe('Gitverse.node.execute', () => {
 			'hook',
 			'issue',
 			'label',
+			'organization',
 			'pullRequest',
 			'release',
 			'repository',
+			'user',
 		]);
 	});
 });

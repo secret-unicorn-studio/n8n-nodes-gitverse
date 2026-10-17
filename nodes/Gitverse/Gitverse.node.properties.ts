@@ -9,9 +9,14 @@ import { fileFields, fileOperations } from './descriptions/file.description';
 import { hookFields, hookOperations } from './descriptions/hook.description';
 import { issueFields, issueOperations } from './descriptions/issue.description';
 import { labelFields, labelOperations } from './descriptions/label.description';
+import {
+	organizationFields,
+	organizationOperations,
+} from './descriptions/organization.description';
 import { pullRequestFields, pullRequestOperations } from './descriptions/pullRequest.description';
 import { releaseFields, releaseOperations } from './descriptions/release.description';
 import { repositoryFields, repositoryOperations } from './descriptions/repository.description';
+import { userFields, userOperations } from './descriptions/user.description';
 
 export const gitverseResources: INodePropertyOptions[] = [
 	{
@@ -39,6 +44,10 @@ export const gitverseResources: INodePropertyOptions[] = [
 		value: 'label',
 	},
 	{
+		name: 'Organization',
+		value: 'organization',
+	},
+	{
 		name: 'Pull Request',
 		value: 'pullRequest',
 	},
@@ -49,6 +58,10 @@ export const gitverseResources: INodePropertyOptions[] = [
 	{
 		name: 'Repository',
 		value: 'repository',
+	},
+	{
+		name: 'User',
+		value: 'user',
 	},
 ];
 
@@ -62,6 +75,8 @@ export const gitverseOperations: INodePropertyOptions[] = [
 	...issueOperations,
 	...labelOperations,
 	...releaseOperations,
+	...userOperations,
+	...organizationOperations,
 ];
 
 export const gitverseNodeProperties: INodeProperties[] = [
@@ -90,4 +105,6 @@ export const gitverseNodeProperties: INodeProperties[] = [
 	...issueFields,
 	...labelFields,
 	...releaseFields,
+	...userFields,
+	...organizationFields,
 ];

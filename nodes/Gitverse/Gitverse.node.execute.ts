@@ -12,9 +12,11 @@ import * as file from './actions/file.operations';
 import * as hook from './actions/hook.operations';
 import * as issue from './actions/issue.operations';
 import * as label from './actions/label.operations';
+import * as organization from './actions/organization.operations';
 import * as pullRequest from './actions/pullRequest.operations';
 import * as release from './actions/release.operations';
 import * as repository from './actions/repository.operations';
+import * as user from './actions/user.operations';
 import { toJsonRecord } from './utils/params';
 
 export type OperationFunction = (
@@ -84,6 +86,15 @@ export const operations: Record<string, ResourceOperations> = {
 		create: label.createLabel,
 		update: label.updateLabel,
 	},
+	organization: {
+		getTeams: organization.getOrgTeams,
+		createTeam: organization.createOrgTeam,
+		getTeamMembers: organization.getTeamMembers,
+		getMember: organization.getOrgMember,
+		getTeamRepos: organization.getTeamRepos,
+		setTeamRepo: organization.setTeamRepo,
+		getIssueTypes: organization.getOrgIssueTypes,
+	},
 	pullRequest: {
 		get: pullRequest.getPullRequest,
 		getAll: pullRequest.getManyPullRequests,
@@ -121,6 +132,15 @@ export const operations: Record<string, ResourceOperations> = {
 		addCollaborator: repository.addCollaborator,
 		getLanguages: repository.getLanguages,
 		fork: repository.forkRepository,
+	},
+	user: {
+		get: user.getUser,
+		getByLogin: user.getUserByLogin,
+		getById: user.getUserById,
+		getEmails: user.getUserEmails,
+		addEmails: user.addUserEmails,
+		deleteEmails: user.deleteUserEmails,
+		search: user.searchUsers,
 	},
 };
 

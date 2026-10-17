@@ -72,9 +72,11 @@ describe('Gitverse node', () => {
 			'hook',
 			'issue',
 			'label',
+			'organization',
 			'pullRequest',
 			'release',
 			'repository',
+			'user',
 		]);
 	});
 
@@ -298,6 +300,49 @@ describe('Gitverse node', () => {
 			'pull_request_review',
 			'push',
 		]);
+	});
+
+	it('should expose the documented user operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const userOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('user'))
+			.map((option) => option.value);
+
+		expect([...userOperations].sort()).toEqual([
+			'addEmails',
+			'deleteEmails',
+			'get',
+			'getById',
+			'getByLogin',
+			'getEmails',
+			'search',
+		]);
+	});
+
+	it('should expose the documented organization operations', () => {
+		const options = (findProperty('operation') as any).options as any[];
+		const orgOperations = options
+			.filter((option) => option.displayOptions.show.resource.includes('organization'))
+			.map((option) => option.value);
+
+		expect([...orgOperations].sort()).toEqual([
+			'createTeam',
+			'getIssueTypes',
+			'getMember',
+			'getTeamMembers',
+			'getTeamRepos',
+			'getTeams',
+			'setTeamRepo',
+		]);
+	});
+
+	it('should have user and organization fields', () => {
+		expect(findProperty('accountId')).toBeDefined();
+		expect(findProperty('searchQuery')).toBeDefined();
+		expect(findProperty('organization')).toBeDefined();
+		expect(findProperty('team')).toBeDefined();
+		expect(findProperty('teamName')).toBeDefined();
+		expect(findProperty('canCreateOrgRepo')).toBeDefined();
 	});
 
 	it('should register the list search methods', () => {
