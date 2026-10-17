@@ -43,7 +43,6 @@ export class GitverseWebhook implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Gitverse Webhook',
 		name: 'gitverseWebhook',
-		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
 		icon: 'file:gitverse.svg',
 		group: ['trigger'],
 		version: 1,

@@ -61,7 +61,7 @@ export async function execute(this: IExecuteFunctions) {
 
 	const baseUrl = credentials.baseUrl;
 	const token = credentials.token;
-	const api = createApiClient({ baseUrl, token });
+	const api = createApiClient({ baseUrl, token, retries: credentials.retries });
 
 	for (let i = 0; i < items.length; i++) {
 		try {

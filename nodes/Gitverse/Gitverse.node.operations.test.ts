@@ -49,7 +49,7 @@ describe('Gitverse.node.operations', () => {
 
 			const result = await getRepository.call(ctx, api as any, 0);
 
-			expect(api.get).toHaveBeenCalledWith('/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse');
+			expect(api.get).toHaveBeenCalledWith('/repos/SUSTUDIO/n8n-nodes-gitverse');
 			expect(result).toEqual({ id: 1, name: 'n8n-nodes-gitverse' });
 		});
 
@@ -80,8 +80,8 @@ describe('Gitverse.node.operations', () => {
 
 			const result = await getManyRepositories.call(ctx, api as any, 0);
 
-			expect(api.get).toHaveBeenCalledWith('/api/v1/user/repos', {
-				params: { type: 'all', sort: 'asc', page: 1, perPage: 50 },
+			expect(api.get).toHaveBeenCalledWith('/user/repos', {
+				params: { type: 'all', sort: 'asc', page: 1, per_page: 50 },
 			});
 			expect(result).toEqual([{ id: 1 }]);
 		});
@@ -94,8 +94,8 @@ describe('Gitverse.node.operations', () => {
 
 			await getManyRepositories.call(ctx, api as any, 0);
 
-			expect(api.get).toHaveBeenCalledWith('/api/v1/user/repos', {
-				params: { type: 'source', sort: 'desc', page: 1, perPage: 10 },
+			expect(api.get).toHaveBeenCalledWith('/user/repos', {
+				params: { type: 'source', sort: 'desc', page: 1, per_page: 10 },
 			});
 		});
 
@@ -117,7 +117,7 @@ describe('Gitverse.node.operations', () => {
 			const result = await getBranch.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/branches/develop'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/branches/develop'
 			);
 			expect(result).toEqual({ name: 'main' });
 		});
@@ -149,8 +149,8 @@ describe('Gitverse.node.operations', () => {
 			const result = await getManyBranches.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/branches',
-				{ params: { page: 1, perPage: 50 } }
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/branches',
+				{ params: { page: 1, per_page: 50 } }
 			);
 			expect(result).toEqual([{ name: 'main' }]);
 		});
@@ -179,10 +179,10 @@ describe('Gitverse.node.operations', () => {
 			const result = await createBranch.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/branches/develop'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/branches/develop'
 			);
 			expect(api.post).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/git/refs',
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/git/refs',
 				{ ref: 'refs/heads/feature', sha: 'abc123' }
 			);
 			expect(result).toEqual({ ref: 'refs/heads/feature' });
@@ -196,7 +196,7 @@ describe('Gitverse.node.operations', () => {
 			await createBranch.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/branches/main'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/branches/main'
 			);
 		});
 
@@ -210,7 +210,7 @@ describe('Gitverse.node.operations', () => {
 			await createBranch.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/branches/main'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/branches/main'
 			);
 		});
 
@@ -234,7 +234,7 @@ describe('Gitverse.node.operations', () => {
 			const result = await getFile.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/contents/README.md'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/contents/README.md'
 			);
 			expect(result).toEqual({ content: 'aGVsbG8=' });
 		});
@@ -248,7 +248,7 @@ describe('Gitverse.node.operations', () => {
 			await getFile.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/contents/docs/guide/intro.md'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/contents/docs/guide/intro.md'
 			);
 		});
 
@@ -272,7 +272,7 @@ describe('Gitverse.node.operations', () => {
 			const result = await createOrUpdateFile.call(ctx, api as any, 0);
 
 			expect(api.put).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/contents/notes.txt',
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/contents/notes.txt',
 				{
 					message: 'Update file via n8n',
 					content: Buffer.from('hello world').toString('base64'),
@@ -298,7 +298,7 @@ describe('Gitverse.node.operations', () => {
 			await createOrUpdateFile.call(ctx, api as any, 0);
 
 			expect(api.put).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/contents/notes.txt',
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/contents/notes.txt',
 				{
 					message: 'docs: update notes',
 					content: Buffer.from('body').toString('base64'),
@@ -350,7 +350,7 @@ describe('Gitverse.node.operations', () => {
 			const result = await getPullRequest.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/pulls/7'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/pulls/7'
 			);
 			expect(result).toEqual({ number: 7 });
 		});
@@ -362,7 +362,7 @@ describe('Gitverse.node.operations', () => {
 			await getPullRequest.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/pulls/0'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/pulls/0'
 			);
 		});
 
@@ -393,8 +393,8 @@ describe('Gitverse.node.operations', () => {
 			const result = await getManyPullRequests.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/pulls',
-				{ params: { page: 1, perPage: 50 } }
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/pulls',
+				{ params: { page: 1, per_page: 50 } }
 			);
 			expect(result).toEqual([{ number: 1 }]);
 		});
@@ -415,7 +415,7 @@ describe('Gitverse.node.operations', () => {
 			const result = await createPullRequest.call(ctx, api as any, 0);
 
 			expect(api.post).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/pulls',
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/pulls',
 				{
 					title: 'Add feature',
 					body: 'Description',
@@ -477,7 +477,7 @@ describe('Gitverse.node.operations', () => {
 			const result = await compareBranches.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/compare/main...feature'
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/compare/main...feature'
 			);
 			expect(result).toEqual({ commits: [] });
 		});
@@ -513,8 +513,8 @@ describe('Gitverse.node.operations', () => {
 			const result = await getManyCommits.call(ctx, api as any, 0);
 
 			expect(api.get).toHaveBeenCalledWith(
-				'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/commits',
-				{ params: { page: 1, perPage: 50 } }
+				'/repos/SUSTUDIO/n8n-nodes-gitverse/commits',
+				{ params: { page: 1, per_page: 50 } }
 			);
 			expect(result).toEqual([{ sha: 'abc' }]);
 		});

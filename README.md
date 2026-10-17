@@ -1,6 +1,28 @@
 # n8n-nodes-gitverse
 
-Custom [n8n](https://n8n.io) nodes for interacting with [Gitverse](https://gitverse.ru) (Gitea 1.23) API.
+Custom [n8n](https://n8n.io) nodes for interacting with the [Gitverse](https://gitverse.ru) public API.
+
+## API notes
+
+The Gitverse API lives on `https://api.gitverse.ru` — the web UI host (`gitverse.ru`)
+does **not** serve `/api/v1/...`, so requests to it fail with 404. Two more details
+that the node handles for you:
+
+- Requests must send `Accept: application/vnd.gitverse.object+json;version=1`, otherwise
+  the API answers `415`.
+- Authentication is `Authorization: Bearer <token>`; the `token <token>` scheme is rejected
+  with `401`.
+- Lists are paginated with `page` / `per_page` (max 100). The `Link` header points at a host
+  that does not respond, so the node reads only the `page` number from `rel="last"` and
+  rebuilds the request itself.
+- Errors are nested: `{"error":{"code":"NOT_FOUND","message":"Not found",...}}`. The node
+  surfaces them as `[Gitverse 404] NOT_FOUND: Not found`.
+- `429` and `5xx` responses are retried with exponential backoff, honouring `Retry-After`.
+  The budget is configurable through the **Max Retries** credential field.
+
+Legacy credential values that point at the web host (`https://gitverse.ru`,
+`https://gitverse.ru/api/v1`) are rewritten to `https://api.gitverse.ru` automatically;
+self-hosted base URLs are used as-is.
 
 ## Features
 
@@ -45,8 +67,10 @@ supported environment variables, so they cannot be used to install this node.
 ## Setup
 
 1. Create **Gitverse API** credentials in n8n:
-   - **Base URL**: `https://gitverse.ru` (or `https://git.sustudio.ru` inside VPN)
-   - **Personal Access Token**: PAT with `repo` scope
+   - **Base URL**: `https://api.gitverse.ru` (self-hosted instances need their own prefix,
+     for example `https://git.sustudio.ru/api/v1`)
+   - **Personal Access Token**: PAT with the scopes your workflows need
+   - **Max Retries**: how many times to retry `429` / `5xx` responses (default `3`, `0` disables)
 
 2. Add the **Gitverse** node to your workflow and select the credentials.
 

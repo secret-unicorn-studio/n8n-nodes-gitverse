@@ -65,7 +65,7 @@ export async function getRepository(
 ): Promise<Record<string, any>> {
 	const { owner, repo } = requireRepository(this, itemIndex);
 
-	const response = await api.get(`/api/v1/repos/${owner}/${repo}`);
+	const response = await api.get(`/repos/${owner}/${repo}`);
 	return response.data;
 }
 
@@ -82,12 +82,12 @@ export async function getManyRepositories(
 		any
 	>;
 
-	const response = await api.get('/api/v1/user/repos', {
+	const response = await api.get('/user/repos', {
 		params: {
 			type: filters.type || 'all',
 			sort: filters.sort || 'asc',
 			page: 1,
-			perPage: filters.perPage || 50,
+			per_page: filters.perPage || 50,
 		},
 	});
 	return response.data;
@@ -109,7 +109,7 @@ export async function getBranch(
 		'Branch name is required'
 	);
 
-	const response = await api.get(`/api/v1/repos/${owner}/${repo}/branches/${branch}`);
+	const response = await api.get(`/repos/${owner}/${repo}/branches/${branch}`);
 	return response.data;
 }
 
@@ -123,8 +123,8 @@ export async function getManyBranches(
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = requireRepository(this, itemIndex);
 
-	const response = await api.get(`/api/v1/repos/${owner}/${repo}/branches`, {
-		params: { page: 1, perPage: 50 },
+	const response = await api.get(`/repos/${owner}/${repo}/branches`, {
+		params: { page: 1, per_page: 50 },
 	});
 	return response.data;
 }
@@ -149,12 +149,12 @@ export async function createBranch(
 
 	// First, get the base branch to find its commit SHA
 	const baseBranchResponse = await api.get(
-		`/api/v1/repos/${owner}/${repo}/branches/${baseBranch}`
+		`/repos/${owner}/${repo}/branches/${baseBranch}`
 	);
 	const baseSha = baseBranchResponse.data.commit.sha;
 
 	// Create the new branch reference
-	const response = await api.post(`/api/v1/repos/${owner}/${repo}/git/refs`, {
+	const response = await api.post(`/repos/${owner}/${repo}/git/refs`, {
 		ref: `refs/heads/${newBranch}`,
 		sha: baseSha,
 	});
@@ -179,7 +179,7 @@ export async function getFile(
 	);
 
 	const response = await api.get(
-		`/api/v1/repos/${owner}/${repo}/contents/${filePath}`
+		`/repos/${owner}/${repo}/contents/${filePath}`
 	);
 	return response.data;
 }
@@ -221,7 +221,7 @@ export async function createOrUpdateFile(
 	}
 
 	const response = await api.put(
-		`/api/v1/repos/${owner}/${repo}/contents/${filePath}`,
+		`/repos/${owner}/${repo}/contents/${filePath}`,
 		body
 	);
 
@@ -247,7 +247,7 @@ export async function getPullRequest(
 		);
 	}
 
-	const response = await api.get(`/api/v1/repos/${owner}/${repo}/pulls/${prIndex}`);
+	const response = await api.get(`/repos/${owner}/${repo}/pulls/${prIndex}`);
 	return response.data;
 }
 
@@ -261,8 +261,8 @@ export async function getManyPullRequests(
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = requireRepository(this, itemIndex);
 
-	const response = await api.get(`/api/v1/repos/${owner}/${repo}/pulls`, {
-		params: { page: 1, perPage: 50 },
+	const response = await api.get(`/repos/${owner}/${repo}/pulls`, {
+		params: { page: 1, per_page: 50 },
 	});
 	return response.data;
 }
@@ -291,7 +291,7 @@ export async function createPullRequest(
 		);
 	}
 
-	const response = await api.post(`/api/v1/repos/${owner}/${repo}/pulls`, {
+	const response = await api.post(`/repos/${owner}/${repo}/pulls`, {
 		title,
 		body,
 		head,
@@ -323,7 +323,7 @@ export async function compareBranches(
 	}
 
 	const response = await api.get(
-		`/api/v1/repos/${owner}/${repo}/compare/${baseBranch}...${headBranch}`
+		`/repos/${owner}/${repo}/compare/${baseBranch}...${headBranch}`
 	);
 	return response.data;
 }
@@ -338,8 +338,8 @@ export async function getManyCommits(
 ): Promise<Record<string, any>[]> {
 	const { owner, repo } = requireRepository(this, itemIndex);
 
-	const response = await api.get(`/api/v1/repos/${owner}/${repo}/commits`, {
-		params: { page: 1, perPage: 50 },
+	const response = await api.get(`/repos/${owner}/${repo}/commits`, {
+		params: { page: 1, per_page: 50 },
 	});
 	return response.data;
 }

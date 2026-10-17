@@ -1,4 +1,5 @@
 import { GitverseApi } from './GitverseApi.credentials';
+import { GITVERSE_ACCEPT_HEADER } from '../utils/api';
 
 describe('GitverseApi credentials', () => {
 	const creds = new GitverseApi();
@@ -11,22 +12,24 @@ describe('GitverseApi credentials', () => {
 		expect(creds.displayName).toBe('Gitverse API');
 	});
 
-	it('should have documentationUrl', () => {
-		expect(creds.documentationUrl).toBe('https://docs.gitea.com/api/latest');
+	it('should point at the Gitverse API documentation', () => {
+		expect(creds.documentationUrl).toBe(
+			'https://gitverse.ru/docs/developers/public-api'
+		);
 	});
 
 	it('should have properties array', () => {
 		expect(Array.isArray(creds.properties)).toBe(true);
-		expect(creds.properties.length).toBe(2);
+		expect(creds.properties.length).toBe(3);
 	});
 
-	it('should have baseUrl property', () => {
+	it('should default to the API host', () => {
 		const baseUrlProp = creds.properties.find((p) => p.name === 'baseUrl');
 		expect(baseUrlProp).toBeDefined();
 		expect(baseUrlProp?.displayName).toBe('Base URL');
 		expect(baseUrlProp?.type).toBe('string');
-		expect(baseUrlProp?.default).toBe('https://gitverse.ru');
-		expect(baseUrlProp?.placeholder).toBe('https://gitverse.ru');
+		expect(baseUrlProp?.default).toBe('https://api.gitverse.ru');
+		expect(baseUrlProp?.placeholder).toBe('https://api.gitverse.ru');
 	});
 
 	it('should have token property', () => {
@@ -38,15 +41,36 @@ describe('GitverseApi credentials', () => {
 		expect(tokenProp?.typeOptions?.password).toBe(true);
 	});
 
+	it('should expose a retry budget', () => {
+		const retriesProp = creds.properties.find((p) => p.name === 'maxRetries');
+		expect(retriesProp).toBeDefined();
+		expect(retriesProp?.type).toBe('number');
+		expect(retriesProp?.default).toBe(3);
+	});
+
 	it('should have authenticate method', () => {
 		expect(creds.authenticate).toBeDefined();
 		expect(creds.authenticate?.type).toBe('generic');
 	});
 
-	it('should generate correct authorization header', () => {
+	it('should generate the Bearer authorization header', () => {
 		const properties = creds.authenticate?.properties as any;
-		expect(properties?.headers?.Authorization).toBe(
-			'token {{ token }}'
+		expect(properties?.headers?.Authorization).toBe('Bearer {{ token }}');
+	});
+
+	it('should request the versioned media type', () => {
+		const properties = creds.authenticate?.properties as any;
+		expect(properties?.headers?.Accept).toBe(GITVERSE_ACCEPT_HEADER);
+	});
+
+	it('should verify credentials against the current user endpoint', () => {
+		expect(creds.test?.request).toEqual(
+			expect.objectContaining({
+				baseURL: '={{ $credentials.baseUrl }}',
+				url: '/user',
+				method: 'GET',
+				headers: { Accept: GITVERSE_ACCEPT_HEADER },
+			})
 		);
 	});
 });

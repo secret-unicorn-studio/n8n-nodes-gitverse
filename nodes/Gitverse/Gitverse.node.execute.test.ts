@@ -74,7 +74,7 @@ describe('Gitverse.node.execute', () => {
 
 		const result = await execute.call(ctx);
 
-		expect(api.get).toHaveBeenCalledWith('/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse');
+		expect(api.get).toHaveBeenCalledWith('/repos/SUSTUDIO/n8n-nodes-gitverse');
 		expect(result).toEqual([{ json: { id: 1 } }]);
 	});
 
@@ -86,7 +86,7 @@ describe('Gitverse.node.execute', () => {
 
 		const result = await execute.call(ctx);
 
-		expect(api.get).toHaveBeenCalledWith('/api/v1/user/repos', expect.anything());
+		expect(api.get).toHaveBeenCalledWith('/user/repos', expect.anything());
 		expect(result).toEqual([{ json: [{ id: 1 }, { id: 2 }] }]);
 	});
 
@@ -106,7 +106,7 @@ describe('Gitverse.node.execute', () => {
 		const result = await execute.call(ctx);
 
 		expect(api.post).toHaveBeenCalledWith(
-			'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/git/refs',
+			'/repos/SUSTUDIO/n8n-nodes-gitverse/git/refs',
 			{ ref: 'refs/heads/feature', sha: 'base-sha' }
 		);
 		expect(result).toEqual([{ json: { ref: 'refs/heads/feature' } }]);
@@ -127,7 +127,7 @@ describe('Gitverse.node.execute', () => {
 		await execute.call(ctx);
 
 		expect(api.put).toHaveBeenCalledWith(
-			'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/contents/README.md',
+			'/repos/SUSTUDIO/n8n-nodes-gitverse/contents/README.md',
 			expect.objectContaining({
 				content: Buffer.from('hello').toString('base64'),
 			})
@@ -149,7 +149,7 @@ describe('Gitverse.node.execute', () => {
 		await execute.call(ctx);
 
 		expect(api.get).toHaveBeenCalledWith(
-			'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/compare/main...feature'
+			'/repos/SUSTUDIO/n8n-nodes-gitverse/compare/main...feature'
 		);
 	});
 
@@ -174,7 +174,7 @@ describe('Gitverse.node.execute', () => {
 		await execute.call(ctx);
 
 		expect(api.get).toHaveBeenCalledWith(
-			'/api/v1/repos/SUSTUDIO/n8n-nodes-gitverse/commits',
+			'/repos/SUSTUDIO/n8n-nodes-gitverse/commits',
 			expect.anything()
 		);
 	});
@@ -205,8 +205,8 @@ describe('Gitverse.node.execute', () => {
 
 		const result = await execute.call(ctx);
 
-		expect(api.get).toHaveBeenNthCalledWith(1, '/api/v1/repos/SUSTUDIO/repo-0');
-		expect(api.get).toHaveBeenNthCalledWith(2, '/api/v1/repos/SUSTUDIO/repo-1');
+		expect(api.get).toHaveBeenNthCalledWith(1, '/repos/SUSTUDIO/repo-0');
+		expect(api.get).toHaveBeenNthCalledWith(2, '/repos/SUSTUDIO/repo-1');
 		expect(result).toEqual([{ json: { id: 1 } }, { json: { id: 2 } }]);
 	});
 

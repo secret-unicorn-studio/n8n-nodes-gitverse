@@ -13,7 +13,6 @@ export class Gitverse implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Gitverse',
 		name: 'gitverse',
-		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
 		icon: 'file:gitverse.svg',
 		group: ['output'],
 		version: 1,
